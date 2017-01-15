@@ -4,7 +4,8 @@
 [![Go Report](https://goreportcard.com/badge/github.com/ernado/ice)](http://goreportcard.com/report/ernado/ice)
 
 # ice
-Package ice implements [RFC 5245](https://tools.ietf.org/html/rfc5245) Interactive Connectivity Establishment (ICE):
+Package ice implements [RFC 5245](https://tools.ietf.org/html/rfc5245) 
+Interactive Connectivity Establishment (ICE):
 A Protocol for Network Address Translator (NAT) Traversal for Offer/Answer Protocols.
 
 Currently in active development. Do not use this package at all. API will
