@@ -277,10 +277,6 @@ type candidateParser struct {
 
 const sp = ' '
 
-var (
-	spSlice = []byte{sp}
-)
-
 const (
 	mandatoryElements = 6
 )
