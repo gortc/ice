@@ -45,6 +45,7 @@ type ConnectionAddress struct {
 	Type AddressType
 }
 
+// reset sets all fields to zero values.
 func (a *ConnectionAddress) reset() {
 	a.Host = a.Host[:0]
 	for i := range a.IP {
@@ -53,6 +54,7 @@ func (a *ConnectionAddress) reset() {
 	a.Type = AddressIPv4
 }
 
+// Equal returns true if b equals to a.
 func (a ConnectionAddress) Equal(b ConnectionAddress) bool {
 	if a.Type != b.Type {
 		return false
@@ -148,6 +150,7 @@ type Candidate struct {
 	Attributes Attributes
 }
 
+// reset sets all fields to zero values.
 func (c *Candidate) reset() {
 	c.ConnectionAddress.reset()
 	c.RelatedAddress.reset()
@@ -159,6 +162,7 @@ func (c *Candidate) reset() {
 	c.Attributes = c.Attributes[:0]
 }
 
+// Equal returns true if b candidate is equal to c.
 func (c Candidate) Equal(b *Candidate) bool {
 	if !c.ConnectionAddress.Equal(b.ConnectionAddress) {
 		return false
@@ -194,13 +198,17 @@ func (c Candidate) Equal(b *Candidate) bool {
 	return true
 }
 
+// Attribute is key-value pair.
 type Attribute struct {
 	Key   []byte
 	Value []byte
 }
 
+// Attributes is list of attributes.
 type Attributes []Attribute
 
+// Value returns first attribute value with key k or
+// nil of none found.
 func (a Attributes) Value(k []byte) []byte {
 	for _, attribute := range a {
 		if bytes.Equal(attribute.Key, k) {
@@ -214,8 +222,10 @@ func (a Attribute) String() string {
 	return fmt.Sprintf("%s:%s", a.Key, a.Value)
 }
 
+// TransportType is transport type for candidate.
 type TransportType byte
 
+// Supported transport types.
 const (
 	TransportUDP TransportType = iota
 	TransportUnknown
@@ -228,10 +238,6 @@ func (t TransportType) String() string {
 	default:
 		return "Unknown"
 	}
-}
-
-func (c *Candidate) Scan(b []byte) error {
-	return nil
 }
 
 // candidateParser should parse []byte into Candidate.
@@ -402,6 +408,7 @@ const (
 	minBufLen = 10
 )
 
+// parse populates internal Candidate from buffer.
 func (p *candidateParser) parse() error {
 	if len(p.buf) < minBufLen {
 		return errors.Errorf("buffer too small (%d < %d)", len(p.buf), minBufLen)
@@ -415,6 +422,8 @@ func (p *candidateParser) parse() error {
 	}
 	// pos is current position
 	// l is value length
+	// last is last character offset
+	// of mandatory elements
 	var pos, l, last int
 	fns := []parseFn{
 		p.parseFoundation,        // 0
@@ -426,61 +435,74 @@ func (p *candidateParser) parse() error {
 	}
 	for i, c := range p.buf {
 		if pos > mandatoryElements-1 {
+			// saving offset
 			last = i
 			break
 		}
 		if c != sp {
+			// non-space character
 			l += 1
 			continue
 		}
+		// space character reached
 		if err := fns[pos](p.buf[i-l : i]); err != nil {
 			return errors.Wrapf(err, "failed to parse char %d, pos %d",
 				i, pos,
 			)
 		}
-		pos += 1
-		l = 0
+		pos += 1 // next element
+		l = 0    // reset length of element
 	}
 	if last == 0 {
 		// no non-mandatory elements
 		return nil
 	}
+	// offsets:
 	var (
-		kStart int
-		kEnd   int
-		vStart int
+		kStart int // key start
+		kEnd   int // key end
+		vStart int // value start
 	)
+	// subslicing to simplify offset calculation
 	buf := p.buf[last-1:]
 	for i, c := range buf {
 		if c != sp && i != len(buf)-1 {
+			// char is non-space or end of buffer
 			if kStart == 0 {
+				// key not started
 				kStart = i
 				continue
 			}
 			if vStart == 0 && kEnd != 0 {
+				// value not started and key ended
 				vStart = i
 			}
 			continue
 		}
+		// char is space
 		if kStart == 0 {
+			// key not started, skipping
 			continue
 		}
 		if kEnd == 0 {
+			// key ended, saving offset
 			kEnd = i
 			continue
 		}
+		// value ended, saving attribute
 		a := Attribute{
 			Value: buf[vStart:i],
 			Key:   buf[kStart:kEnd],
 		}
-		vStart = 0
-		kEnd = 0
-		kStart = 0
 		if err := p.parseAttribute(a); err != nil {
 			return errors.Wrapf(err, "failed to parse attribute at char %d",
 				i+last,
 			)
 		}
+		// reset offset
+		vStart = 0
+		kEnd = 0
+		kStart = 0
 	}
 	return nil
 }
