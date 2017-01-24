@@ -55,6 +55,55 @@ func TestConnectionAddress(t *testing.T) {
 	//           port ------------------------------------------┘
 }
 
+func TestParse(t *testing.T) {
+	data := loadData(t, "candidates_ex1.sdp")
+	s, err := sdp.DecodeSession(data, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	expected := []Candidate{
+		{
+			Foundation:  3862931549,
+			ComponentID: 1,
+			Priority:    2113937151,
+			ConnectionAddress: ConnectionAddress{
+				IP: net.ParseIP("192.168.220.128"),
+			},
+			Port:        56032,
+			Type:        CandidateHost,
+			NetworkCost: 50,
+			Attributes: Attributes{
+				Attribute{
+					Key:   []byte("alpha"),
+					Value: []byte("beta"),
+				},
+			},
+		},
+	}
+	tCases := []struct {
+		input    []byte
+		expected Candidate
+	}{
+		{s[0].Value, expected[0]}, // 0
+	}
+
+	for i, c := range tCases {
+		parser := candidateParser{
+			buf: c.input,
+		}
+		if err := parser.parse(); err != nil {
+			t.Errorf("[%d]: unexpected error %s",
+				i, err,
+			)
+		}
+		if !c.expected.Equal(&parser.c) {
+			t.Errorf("[%d]: %v != %v (exp)",
+				i, parser.c, c.expected,
+			)
+		}
+	}
+}
+
 func BenchmarkParse(b *testing.B) {
 	data := loadData(b, "candidates_ex1.sdp")
 	s, err := sdp.DecodeSession(data, nil)

@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"fmt"
 	"net"
-
 	"unsafe"
 
 	"github.com/pkg/errors"
@@ -194,6 +193,9 @@ func (c Candidate) Equal(b *Candidate) bool {
 	if c.Generation != b.Generation {
 		return false
 	}
+	if !c.Attributes.Equal(b.Attributes) {
+		return false
+	}
 
 	return true
 }
@@ -216,6 +218,25 @@ func (a Attributes) Value(k []byte) []byte {
 		}
 	}
 	return nil
+}
+
+func (a Attributes) Equal(b Attributes) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for _, attr := range a {
+		v := b.Value(attr.Key)
+		if !bytes.Equal(v, attr.Value) {
+			return false
+		}
+	}
+	for _, attr := range b {
+		v := a.Value(attr.Key)
+		if !bytes.Equal(v, attr.Value) {
+			return false
+		}
+	}
+	return true
 }
 
 func (a Attribute) String() string {
@@ -441,7 +462,7 @@ func (p *candidateParser) parse() error {
 		}
 		if c != sp {
 			// non-space character
-			l += 1
+			l++
 			continue
 		}
 		// space character reached
@@ -450,8 +471,8 @@ func (p *candidateParser) parse() error {
 				i, pos,
 			)
 		}
-		pos += 1 // next element
-		l = 0    // reset length of element
+		pos++ // next element
+		l = 0 // reset length of element
 	}
 	if last == 0 {
 		// no non-mandatory elements
@@ -459,40 +480,49 @@ func (p *candidateParser) parse() error {
 	}
 	// offsets:
 	var (
-		kStart int // key start
-		kEnd   int // key end
+		start  int // key start
+		end    int // key end
 		vStart int // value start
 	)
 	// subslicing to simplify offset calculation
 	buf := p.buf[last-1:]
+	// saving every k:v pair ignoring spaces
 	for i, c := range buf {
 		if c != sp && i != len(buf)-1 {
 			// char is non-space or end of buffer
-			if kStart == 0 {
+			if start == 0 {
 				// key not started
-				kStart = i
+				start = i
 				continue
 			}
-			if vStart == 0 && kEnd != 0 {
+			if vStart == 0 && end != 0 {
 				// value not started and key ended
 				vStart = i
 			}
 			continue
 		}
-		// char is space
-		if kStart == 0 {
+		// char is space or end of buf reached
+		if start == 0 {
 			// key not started, skipping
 			continue
 		}
-		if kEnd == 0 {
+		if end == 0 {
 			// key ended, saving offset
-			kEnd = i
+			end = i
 			continue
+		}
+		if vStart == 0 {
+			// value not started, skipping
+			continue
+		}
+		if i == len(buf)-1 && buf[len(buf)-1] != sp {
+			// fix for end of buf
+			i = len(buf)
 		}
 		// value ended, saving attribute
 		a := Attribute{
+			Key:   buf[start:end],
 			Value: buf[vStart:i],
-			Key:   buf[kStart:kEnd],
 		}
 		if err := p.parseAttribute(a); err != nil {
 			return errors.Wrapf(err, "failed to parse attribute at char %d",
@@ -501,8 +531,8 @@ func (p *candidateParser) parse() error {
 		}
 		// reset offset
 		vStart = 0
-		kEnd = 0
-		kStart = 0
+		end = 0
+		start = 0
 	}
 	return nil
 }
