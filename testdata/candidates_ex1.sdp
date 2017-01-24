@@ -6,3 +6,4 @@ a=candidate:2983135859 2 udp 2113937150 10.1.22.220 51941 typ host generation 0 
 a=candidate:4294175796 2 udp 2113939710 2001:67c:56c:100::3 42279 typ host generation 0 ufrag eM2ytqY8D5Q07RAn
 a=candidate:842163049 2 udp 1677729534 91.225.236.99 51941 typ srflx raddr 10.1.22.220 rport 51941 generation 0 ufrag eM2ytqY8D5Q07RAn
 a=candidate:842163049 1 udp 1677729535 91.225.236.99 56024 typ srflx raddr 10.1.22.220 rport 56024 generation 0 ufrag eM2ytqY8D5Q07RAn
+a=candidate:842163049 1 udp 1677729535 b2.cydev.ru 56024 typ srflx raddr 10.1.22.220 rport 56024 generation 0 ufrag eM2ytqY8D5Q07RAn

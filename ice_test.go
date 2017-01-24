@@ -34,8 +34,18 @@ func TestConnectionAddress(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	fmt.Println(string(s[0].Value))
-	// a=candidate:3862931549 1 udp 2113937151 192.168.220.128 56032 typ host generation 0 network-cost 50
+	for _, c := range s {
+		fmt.Println(c)
+		p := candidateParser{
+			buf: c.Value,
+		}
+		if err = p.parse(); err != nil {
+			t.Fatal(err)
+		}
+		fmt.Printf("%+v\n", p.c)
+	}
+
+	// a=candidate:3862931549 1 udp 2113937151 192.168.220.128 56032
 	//     foundation ---┘    |  |      |            |          |
 	//   component id --------┘  |      |            |          |
 	//      transport -----------┘      |            |          |
