@@ -3,6 +3,7 @@ package ice
 import (
 	"fmt"
 	"io/ioutil"
+	"net"
 	"os"
 	"path/filepath"
 	"testing"
@@ -52,4 +53,34 @@ func TestConnectionAddress(t *testing.T) {
 	//       priority ------------------┘            |          |
 	//  conn. address -------------------------------┘          |
 	//           port ------------------------------------------┘
+}
+
+func BenchmarkParse(b *testing.B) {
+	data := loadData(b, "candidates_ex1.sdp")
+	s, err := sdp.DecodeSession(data, nil)
+	if err != nil {
+		b.Fatal(err)
+	}
+	b.ReportAllocs()
+	value := s[0].Value
+	p := candidateParser{}
+	for i := 0; i < b.N; i++ {
+		p.buf = value
+		if err = p.parse(); err != nil {
+			b.Fatal(err)
+		}
+		p.c.reset()
+	}
+}
+
+func BenchmarkParseIP(b *testing.B) {
+	v := []byte("127.0.0.2")
+	var (
+		result = make([]byte, net.IPv4len)
+	)
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		result = parseIP(result, v)
+		result = result[:net.IPv4len]
+	}
 }

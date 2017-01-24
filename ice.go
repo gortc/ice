@@ -8,9 +8,11 @@ import (
 	"bytes"
 	"fmt"
 	"net"
-	"strconv"
+
+	"unsafe"
 
 	"github.com/pkg/errors"
+	"github.com/valyala/fasthttp"
 )
 
 // AddressType is type for ConnectionAddress.
@@ -41,6 +43,14 @@ type ConnectionAddress struct {
 	Host []byte
 	IP   net.IP
 	Type AddressType
+}
+
+func (a *ConnectionAddress) reset() {
+	a.Host = a.Host[:0]
+	for i := range a.IP {
+		a.IP[i] = 0
+	}
+	a.Type = AddressIPv4
 }
 
 func (a ConnectionAddress) Equal(b ConnectionAddress) bool {
@@ -136,6 +146,17 @@ type Candidate struct {
 
 	// Other attributes
 	Attributes Attributes
+}
+
+func (c *Candidate) reset() {
+	c.ConnectionAddress.reset()
+	c.RelatedAddress.reset()
+	c.RelatedPort = 0
+	c.NetworkCost = 0
+	c.Generation = 0
+	c.Transport = TransportUnknown
+	c.TransportValue = c.TransportValue[:0]
+	c.Attributes = c.Attributes[:0]
 }
 
 func (c Candidate) Equal(b *Candidate) bool {
@@ -234,12 +255,15 @@ var (
 )
 
 const (
-	mandatoryElems = 6
+	mandatoryElements = 6
 )
 
 func parseInt(v []byte) (int, error) {
-	i, err := strconv.ParseInt(string(v), 10, 0)
-	return int(i), err
+	if v[0] == '-' {
+		i, err := parseInt(v[1:])
+		return -i, err
+	}
+	return fasthttp.ParseUint(v)
 }
 
 func (p *candidateParser) parseFoundation(v []byte) error {
@@ -287,15 +311,39 @@ func (p *candidateParser) parseRelatedPort(v []byte) error {
 	return nil
 }
 
+// b2s converts byte slice to a string without memory allocation.
+//
+// Note it may break if string and/or slice header will change
+// in the future go versions.
+func b2s(b []byte) string {
+	return *(*string)(unsafe.Pointer(&b))
+}
+
+func parseIP(dst net.IP, v []byte) net.IP {
+	for _, c := range v {
+		if c == '.' {
+			var err error
+			dst, err = fasthttp.ParseIPv4(dst, v)
+			if err != nil {
+				return nil
+			}
+			return dst
+		}
+	}
+	ip := net.ParseIP(b2s(v))
+	for _, c := range ip {
+		dst = append(dst, c)
+	}
+	return dst
+}
+
 func (candidateParser) parseAddress(v []byte, target *ConnectionAddress) error {
-	ip := net.ParseIP(string(v))
-	if ip == nil {
+	target.IP = parseIP(target.IP, v)
+	if target.IP == nil {
 		target.Host = v
-		target.IP = nil
 		target.Type = AddressFQDN
 		return nil
 	}
-	target.IP = ip
 	target.Type = AddressIPv6
 	if target.IP.To4() != nil {
 		target.Type = AddressIPv4
@@ -312,7 +360,7 @@ func (p *candidateParser) parseRelatedAddress(v []byte) error {
 }
 
 func (p *candidateParser) parseTransport(v []byte) error {
-	if bytes.Equal(bytes.ToLower(v), []byte("udp")) {
+	if bytes.Equal(v, []byte("udp")) {
 		p.c.Transport = TransportUDP
 	} else {
 		p.c.Transport = TransportUnknown
@@ -321,10 +369,42 @@ func (p *candidateParser) parseTransport(v []byte) error {
 	return nil
 }
 
+// possible attribute keys.
+const (
+	aGeneration     = "generation"
+	aNetworkCost    = "network-cost"
+	aType           = "typ"
+	aRelatedAddress = "raddr"
+	aRelatedPort    = "rport"
+)
+
+func (p *candidateParser) parseAttribute(a Attribute) error {
+	switch string(a.Key) {
+	case aGeneration:
+		return p.parseGeneration(a.Value)
+	case aNetworkCost:
+		return p.parseNetworkCost(a.Value)
+	case aType:
+		return p.parseType(a.Value)
+	case aRelatedAddress:
+		return p.parseRelatedAddress(a.Value)
+	case aRelatedPort:
+		return p.parseRelatedPort(a.Value)
+	default:
+		p.c.Attributes = append(p.c.Attributes, a)
+		return nil
+	}
+}
+
+type parseFn func(v []byte) error
+
+const (
+	minBufLen = 10
+)
+
 func (p *candidateParser) parse() error {
-	// TODO: refactor and optimize
-	if len(p.buf) < 10 {
-		return errors.New("buffer too small")
+	if len(p.buf) < minBufLen {
+		return errors.Errorf("buffer too small (%d < %d)", len(p.buf), minBufLen)
 	}
 	// special cases for raw value support:
 	if p.buf[0] == 'a' {
@@ -333,70 +413,74 @@ func (p *candidateParser) parse() error {
 	if p.buf[0] == 'c' {
 		p.buf = bytes.TrimPrefix(p.buf, []byte("candidate:"))
 	}
-	elems := bytes.Split(p.buf, spSlice)
-	if len(elems) < mandatoryElems {
-		return errors.Errorf("too few (%d<%d) elements in candidate",
-			len(elems), mandatoryElems,
-		)
+	// pos is current position
+	// l is value length
+	var pos, l, last int
+	fns := []parseFn{
+		p.parseFoundation,        // 0
+		p.parseComponentID,       // 1
+		p.parseTransport,         // 2
+		p.parsePriority,          // 3
+		p.parseConnectionAddress, // 4
+		p.parsePort,              // 5
 	}
-	if err := p.parseFoundation(elems[0]); err != nil {
-		return err
-	}
-	if err := p.parseComponentID(elems[1]); err != nil {
-		return err
-	}
-	if err := p.parseTransport(elems[2]); err != nil {
-		return err
-	}
-	if err := p.parsePriority(elems[3]); err != nil {
-		return err
-	}
-	if err := p.parseConnectionAddress(elems[4]); err != nil {
-		return err
-	}
-	if err := p.parsePort(elems[5]); err != nil {
-		return err
-	}
-	if len(elems) == mandatoryElems {
-		return nil
-	}
-	var name []byte = nil
-	for _, v := range elems[mandatoryElems:] {
-		if name == nil {
-			name = v
+	for i, c := range p.buf {
+		if pos > mandatoryElements-1 {
+			last = i
+			break
+		}
+		if c != sp {
+			l += 1
 			continue
 		}
-		attribute := Attribute{
-			Key:   name,
-			Value: v,
+		if err := fns[pos](p.buf[i-l : i]); err != nil {
+			return errors.Wrapf(err, "failed to parse char %d, pos %d",
+				i, pos,
+			)
 		}
-		// add attributes processing here:
-		switch string(attribute.Key) {
-		case "generation":
-			if err := p.parseGeneration(v); err != nil {
-				return err
+		pos += 1
+		l = 0
+	}
+	if last == 0 {
+		// no non-mandatory elements
+		return nil
+	}
+	var (
+		kStart int
+		kEnd   int
+		vStart int
+	)
+	buf := p.buf[last-1:]
+	for i, c := range buf {
+		if c != sp && i != len(buf)-1 {
+			if kStart == 0 {
+				kStart = i
+				continue
 			}
-		case "network-cost":
-			if err := p.parseNetworkCost(v); err != nil {
-				return err
+			if vStart == 0 && kEnd != 0 {
+				vStart = i
 			}
-		case "typ":
-			if err := p.parseType(v); err != nil {
-				return err
-			}
-		case "raddr":
-			if err := p.parseRelatedAddress(v); err != nil {
-				return err
-			}
-		case "rport":
-			if err := p.parseRelatedPort(v); err != nil {
-				return err
-			}
-		default:
-			// append unknown attribute
-			p.c.Attributes = append(p.c.Attributes, attribute)
+			continue
 		}
-		name = nil
+		if kStart == 0 {
+			continue
+		}
+		if kEnd == 0 {
+			kEnd = i
+			continue
+		}
+		a := Attribute{
+			Value: buf[vStart:i],
+			Key:   buf[kStart:kEnd],
+		}
+		vStart = 0
+		kEnd = 0
+		kStart = 0
+		if err := p.parseAttribute(a); err != nil {
+			return errors.Wrapf(err, "failed to parse attribute at char %d",
+				i+last,
+			)
+		}
 	}
 	return nil
 }
