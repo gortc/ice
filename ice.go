@@ -76,7 +76,7 @@ func (a ConnectionAddress) str() string {
 }
 
 func (a ConnectionAddress) String() string {
-	return fmt.Sprintf("%s(%s)", a.str(), a.Type)
+	return a.str()
 }
 
 // CandidateType encodes the type of candidate. This specification
@@ -272,7 +272,7 @@ func (t TransportType) String() string {
 //           port ------------------------------------------┘
 type candidateParser struct {
 	buf []byte
-	c   Candidate
+	c   *Candidate
 }
 
 const sp = ' '
@@ -383,7 +383,7 @@ func (p *candidateParser) parseRelatedAddress(v []byte) error {
 }
 
 func (p *candidateParser) parseTransport(v []byte) error {
-	if bytes.Equal(v, []byte("udp")) {
+	if bytes.Equal(v, []byte("udp")) || bytes.Equal(v, []byte("UDP")) {
 		p.c.Transport = TransportUDP
 	} else {
 		p.c.Transport = TransportUnknown
@@ -565,4 +565,14 @@ func (p *candidateParser) parseType(v []byte) error {
 		return errors.Errorf("unknown candidate %q", v)
 	}
 	return nil
+}
+
+// ParseAttribute parses v into c and returns error if any.
+func ParseAttribute(v []byte, c *Candidate) error {
+	p := candidateParser{
+		buf: v,
+		c:   c,
+	}
+	err := p.parse()
+	return err
 }

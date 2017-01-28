@@ -38,6 +38,7 @@ func TestConnectionAddress(t *testing.T) {
 	for _, c := range s {
 		fmt.Println(c)
 		p := candidateParser{
+			c:   new(Candidate),
 			buf: c.Value,
 		}
 		if err = p.parse(); err != nil {
@@ -90,13 +91,14 @@ func TestParse(t *testing.T) {
 	for i, c := range tCases {
 		parser := candidateParser{
 			buf: c.input,
+			c:   new(Candidate),
 		}
 		if err := parser.parse(); err != nil {
 			t.Errorf("[%d]: unexpected error %s",
 				i, err,
 			)
 		}
-		if !c.expected.Equal(&parser.c) {
+		if !c.expected.Equal(parser.c) {
 			t.Errorf("[%d]: %v != %v (exp)",
 				i, parser.c, c.expected,
 			)
@@ -112,7 +114,9 @@ func BenchmarkParse(b *testing.B) {
 	}
 	b.ReportAllocs()
 	value := s[0].Value
-	p := candidateParser{}
+	p := candidateParser{
+		c: new(Candidate),
+	}
 	for i := 0; i < b.N; i++ {
 		p.buf = value
 		if err = p.parse(); err != nil {
