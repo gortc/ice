@@ -1,7 +1,6 @@
 package ice
 
 import (
-	"fmt"
 	"io/ioutil"
 	"net"
 	"os"
@@ -36,7 +35,6 @@ func TestConnectionAddress(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, c := range s {
-		fmt.Println(c)
 		p := candidateParser{
 			c:   new(Candidate),
 			buf: c.Value,
@@ -44,7 +42,6 @@ func TestConnectionAddress(t *testing.T) {
 		if err = p.parse(); err != nil {
 			t.Fatal(err)
 		}
-		fmt.Printf("%+v\n", p.c)
 	}
 
 	// a=candidate:3862931549 1 udp 2113937151 192.168.220.128 56032

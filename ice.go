@@ -282,7 +282,8 @@ const (
 )
 
 func parseInt(v []byte) (int, error) {
-	if v[0] == '-' {
+	if len(v) > 1 && v[0] == '-' && v[1] != '-' {
+		// Integer is negative.
 		i, err := parseInt(v[1:])
 		return -i, err
 	}
