@@ -26,7 +26,7 @@ type precedenceConfig struct {
 func init() {
 	// Initializing precedences for IP.
 	/*
-		  ::1/128               50     0
+	      ::1/128               50     0
 	      ::/0                  40     1
 	      ::ffff:0:0/96         35     4
 	      2002::/16             30     2
