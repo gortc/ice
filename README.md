@@ -1,7 +1,7 @@
-[![Build Status](https://travis-ci.org/ernado/ice.svg)](https://travis-ci.org/ernado/ice)
-[![GoDoc](https://godoc.org/github.com/ernado/ice?status.svg)](http://godoc.org/github.com/ernado/ice)
-[![Coverage Status](https://coveralls.io/repos/github/ernado/ice/badge.svg?branch=master)](https://coveralls.io/github/ernado/ice?branch=master)
-[![Go Report](https://goreportcard.com/badge/github.com/ernado/ice)](http://goreportcard.com/report/ernado/ice)
+[![Build Status](https://travis-ci.org/gortc/ice.svg)](https://travis-ci.org/gortc/ice)
+[![GoDoc](https://godoc.org/github.com/gortc/ice?status.svg)](http://godoc.org/github.com/gortc/ice)
+[![Coverage Status](https://coveralls.io/repos/github/gortc/ice/badge.svg?branch=master)](https://coveralls.io/github/gortc/ice?branch=master)
+[![Go Report](https://goreportcard.com/badge/github.com/gortc/ice)](http://goreportcard.com/report/gortc/ice)
 
 # ice
 Package ice implements [RFC 5245](https://tools.ietf.org/html/rfc5245) 

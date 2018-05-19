@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/ernado/sdp"
+	"github.com/gortc/sdp"
 )
 
 func loadData(tb testing.TB, name string) []byte {
