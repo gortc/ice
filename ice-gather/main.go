@@ -5,7 +5,7 @@ import (
 	"log"
 	"net"
 
-	"github.com/ernado/ice"
+	"github.com/gortc/ice"
 )
 
 func main() {
