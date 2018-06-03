@@ -71,6 +71,7 @@ type Addr struct {
 	Precedence int
 }
 
+// Addrs is addr slice helper.
 type Addrs []Addr
 
 func (s Addrs) Less(i, j int) bool {
