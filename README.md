@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/gortc/ice.svg)](https://travis-ci.org/gortc/ice)
+[![Build Status](https://travis-ci.com/gortc/ice.svg)](https://travis-ci.com/gortc/ice)
 [![GoDoc](https://godoc.org/github.com/gortc/ice?status.svg)](http://godoc.org/github.com/gortc/ice)
 [![Coverage Status](https://coveralls.io/repos/github/gortc/ice/badge.svg?branch=master)](https://coveralls.io/github/gortc/ice?branch=master)
 [![Go Report](https://goreportcard.com/badge/github.com/gortc/ice)](http://goreportcard.com/report/gortc/ice)
