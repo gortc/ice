@@ -148,3 +148,8 @@ func (g defaultGatherer) Gather() ([]Addr, error) {
 
 // DefaultGatherer uses net.Interfaces to gather addresses.
 var DefaultGatherer Gatherer = defaultGatherer{}
+
+// Gather via DefaultGatherer.
+func Gather() ([]Addr, error) {
+	return DefaultGatherer.Gather()
+}
