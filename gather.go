@@ -8,8 +8,7 @@ import (
 
 // Gatherer is source for addresses.
 //
-// See https://tools.ietf.org/html/rfc5245#section-2.1 for details
-// on gathering.
+// See RFC 5245 Section 2.1 for details on gathering.
 type Gatherer interface {
 	Gather() ([]Addr, error)
 }
