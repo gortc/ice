@@ -9,7 +9,7 @@ import (
 )
 
 func main() {
-	addrs, err := ice.DefaultGatherer.Gather()
+	addrs, err := ice.Gather()
 	if err != nil {
 		log.Fatal("failed to gather: ", err)
 	}
