@@ -10,6 +10,129 @@ import (
 	"github.com/gortc/sdp"
 )
 
+func TestCandidate_Reset(t *testing.T) {
+	b := Candidate{
+		Foundation:  3862931549,
+		ComponentID: 1,
+		Priority:    2113937151,
+		ConnectionAddress: ConnectionAddress{
+			IP: net.ParseIP("192.168.220.128"),
+		},
+		Port:        56032,
+		Type:        CandidateHost,
+		NetworkCost: 50,
+		Attributes: Attributes{
+			Attribute{
+				Key:   []byte("alpha"),
+				Value: []byte("beta"),
+			},
+		},
+	}
+	c := Candidate{
+		Foundation:  3862931549,
+		ComponentID: 1,
+		Priority:    2113937151,
+		ConnectionAddress: ConnectionAddress{
+			IP: net.ParseIP("192.168.220.128"),
+		},
+		Port:        56032,
+		Type:        CandidateHost,
+		NetworkCost: 50,
+		Attributes: Attributes{
+			Attribute{
+				Key:   []byte("alpha"),
+				Value: []byte("beta"),
+			},
+		},
+	}
+	c.Reset()
+	if c.Equal(&b) {
+		t.Fatal("should not equal")
+	}
+}
+
+func TestCandidate_Equal(t *testing.T) {
+	for _, tt := range []struct {
+		name string
+		a, b  Candidate
+		equal bool
+	}{
+		{
+			name: "Blank",
+			a: Candidate{},
+			b: Candidate{},
+			equal: true,
+		},
+		{
+			name: "Attributes",
+			a: Candidate{},
+			b: Candidate{Attributes: Attributes{{}}},
+			equal: false,
+		},
+		{
+			name: "Port",
+			a: Candidate{},
+			b: Candidate{Port: 10},
+			equal: false,
+		},
+		{
+			name: "Priority",
+			a: Candidate{},
+			b: Candidate{Priority: 10},
+			equal: false,
+		},
+		{
+			name: "Transport",
+			a: Candidate{Transport: TransportUDP},
+			b: Candidate{Transport: TransportUnknown},
+			equal: false,
+		},
+		{
+			name: "TransportValue",
+			a: Candidate{},
+			b: Candidate{TransportValue: []byte("v")},
+			equal: false,
+		},
+		{
+			name: "Foundation",
+			a: Candidate{},
+			b: Candidate{Foundation: 1},
+			equal: false,
+		},
+		{
+			name: "ComponentID",
+			a: Candidate{},
+			b: Candidate{ComponentID: 1},
+			equal: false,
+		},
+		{
+			name: "NetworkCost",
+			a: Candidate{},
+			b: Candidate{NetworkCost: 1},
+			equal: false,
+		},
+		{
+			name: "Generation",
+			a: Candidate{},
+			b: Candidate{Generation: 1},
+			equal: false,
+		},
+		{
+			name: "Type",
+			a: Candidate{},
+			b: Candidate{Type: 1},
+			equal: false,
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.a.Equal(&tt.b) != tt.equal {
+				t.Error("equality test failed")
+			}
+		})
+
+	}
+}
+
 func loadData(tb testing.TB, name string) []byte {
 	name = filepath.Join("testdata", name)
 	f, err := os.Open(name)
