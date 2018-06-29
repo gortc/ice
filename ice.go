@@ -240,8 +240,15 @@ func (a Attributes) Equal(b Attributes) bool {
 	return true
 }
 
+func byteStr(b []byte) string {
+	if b == nil {
+		return "<nil>"
+	}
+	return string(b)
+}
+
 func (a Attribute) String() string {
-	return fmt.Sprintf("%s:%s", a.Key, a.Value)
+	return fmt.Sprintf("%v:%v", byteStr(a.Key), byteStr(a.Value))
 }
 
 // TransportType is transport type for candidate.

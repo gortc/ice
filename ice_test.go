@@ -1,12 +1,12 @@
 package ice
 
 import (
+	"bytes"
 	"io/ioutil"
 	"net"
 	"os"
 	"path/filepath"
 	"testing"
-	"bytes"
 
 	"github.com/gortc/sdp"
 )
@@ -29,14 +29,32 @@ func TestAttributes_Value(t *testing.T) {
 	})
 }
 
+func TestAttribute_String(t *testing.T) {
+	for _, tt := range []struct {
+		in  Attribute
+		out string
+	}{
+		{Attribute{}, "<nil>:<nil>"},
+		{Attribute{Key: []byte("k")}, "k:<nil>"},
+		{Attribute{Value: []byte("v")}, "<nil>:v"},
+		{Attribute{Key: []byte("k"), Value: []byte("v")}, "k:v"},
+	} {
+		t.Run(tt.out, func(t *testing.T) {
+			if tt.out != tt.in.String() {
+				t.Errorf("%q", tt.in.String())
+			}
+		})
+	}
+}
+
 func TestAttributes_Equal(t *testing.T) {
 	for _, tt := range []struct {
-		name string
+		name  string
 		a, b  Attributes
 		equal bool
 	}{
 		{
-			name: "Blank",
+			name:  "Blank",
 			equal: true,
 		},
 		{
@@ -162,74 +180,74 @@ func TestCandidate_Reset(t *testing.T) {
 
 func TestCandidate_Equal(t *testing.T) {
 	for _, tt := range []struct {
-		name string
+		name  string
 		a, b  Candidate
 		equal bool
 	}{
 		{
-			name: "Blank",
-			a: Candidate{},
-			b: Candidate{},
+			name:  "Blank",
+			a:     Candidate{},
+			b:     Candidate{},
 			equal: true,
 		},
 		{
-			name: "Attributes",
-			a: Candidate{},
-			b: Candidate{Attributes: Attributes{{}}},
+			name:  "Attributes",
+			a:     Candidate{},
+			b:     Candidate{Attributes: Attributes{{}}},
 			equal: false,
 		},
 		{
-			name: "Port",
-			a: Candidate{},
-			b: Candidate{Port: 10},
+			name:  "Port",
+			a:     Candidate{},
+			b:     Candidate{Port: 10},
 			equal: false,
 		},
 		{
-			name: "Priority",
-			a: Candidate{},
-			b: Candidate{Priority: 10},
+			name:  "Priority",
+			a:     Candidate{},
+			b:     Candidate{Priority: 10},
 			equal: false,
 		},
 		{
-			name: "Transport",
-			a: Candidate{Transport: TransportUDP},
-			b: Candidate{Transport: TransportUnknown},
+			name:  "Transport",
+			a:     Candidate{Transport: TransportUDP},
+			b:     Candidate{Transport: TransportUnknown},
 			equal: false,
 		},
 		{
-			name: "TransportValue",
-			a: Candidate{},
-			b: Candidate{TransportValue: []byte("v")},
+			name:  "TransportValue",
+			a:     Candidate{},
+			b:     Candidate{TransportValue: []byte("v")},
 			equal: false,
 		},
 		{
-			name: "Foundation",
-			a: Candidate{},
-			b: Candidate{Foundation: 1},
+			name:  "Foundation",
+			a:     Candidate{},
+			b:     Candidate{Foundation: 1},
 			equal: false,
 		},
 		{
-			name: "ComponentID",
-			a: Candidate{},
-			b: Candidate{ComponentID: 1},
+			name:  "ComponentID",
+			a:     Candidate{},
+			b:     Candidate{ComponentID: 1},
 			equal: false,
 		},
 		{
-			name: "NetworkCost",
-			a: Candidate{},
-			b: Candidate{NetworkCost: 1},
+			name:  "NetworkCost",
+			a:     Candidate{},
+			b:     Candidate{NetworkCost: 1},
 			equal: false,
 		},
 		{
-			name: "Generation",
-			a: Candidate{},
-			b: Candidate{Generation: 1},
+			name:  "Generation",
+			a:     Candidate{},
+			b:     Candidate{Generation: 1},
 			equal: false,
 		},
 		{
-			name: "Type",
-			a: Candidate{},
-			b: Candidate{Type: 1},
+			name:  "Type",
+			a:     Candidate{},
+			b:     Candidate{Type: 1},
 			equal: false,
 		},
 	} {
