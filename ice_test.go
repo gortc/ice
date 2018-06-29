@@ -6,9 +6,28 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"bytes"
 
 	"github.com/gortc/sdp"
 )
+
+func TestAttributes_Value(t *testing.T) {
+	a := Attributes{
+		{Key: []byte("key"), Value: []byte("value")},
+	}
+	t.Run("Get key", func(t *testing.T) {
+		v := a.Value([]byte("key"))
+		if !bytes.Equal(v, []byte("value")) {
+			t.Error("attr[key] not equal to value")
+		}
+	})
+	t.Run("Nil", func(t *testing.T) {
+		v := a.Value([]byte("1"))
+		if v != nil {
+			t.Error("attr[1] should be nil")
+		}
+	})
+}
 
 func TestCandidate_Reset(t *testing.T) {
 	b := Candidate{
