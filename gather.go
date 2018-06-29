@@ -100,7 +100,7 @@ func (a Addr) ZeroPortAddr() string {
 	if len(a.Zone) > 0 {
 		host += "%" + a.Zone
 	}
-	return net.JoinHostPort(host, "")
+	return net.JoinHostPort(host, "0")
 }
 
 type defaultGatherer struct{}
