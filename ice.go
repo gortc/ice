@@ -149,8 +149,8 @@ type Candidate struct {
 	Attributes Attributes
 }
 
-// reset sets all fields to zero values.
-func (c *Candidate) reset() {
+// Reset sets all fields to zero values.
+func (c *Candidate) Reset() {
 	c.ConnectionAddress.reset()
 	c.RelatedAddress.reset()
 	c.RelatedPort = 0

@@ -119,7 +119,7 @@ func BenchmarkParse(b *testing.B) {
 		if err = p.parse(); err != nil {
 			b.Fatal(err)
 		}
-		p.c.reset()
+		p.c.Reset()
 	}
 }
 
