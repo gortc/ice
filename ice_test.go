@@ -29,6 +29,96 @@ func TestAttributes_Value(t *testing.T) {
 	})
 }
 
+func TestAttributes_Equal(t *testing.T) {
+	for _, tt := range []struct {
+		name string
+		a, b  Attributes
+		equal bool
+	}{
+		{
+			name: "Blank",
+			equal: true,
+		},
+		{
+			name: "Equal",
+			a: Attributes{
+				{Key: []byte{1}, Value: []byte{2}},
+			},
+			b: Attributes{
+				{Key: []byte{1}, Value: []byte{2}},
+			},
+			equal: true,
+		},
+		{
+			name: "Length",
+			a: Attributes{
+				{Key: []byte{1}, Value: []byte{2}},
+			},
+			equal: false,
+		},
+		{
+			name: "Value",
+			a: Attributes{
+				{Key: []byte{1}, Value: []byte{2}},
+			},
+			b: Attributes{
+				{Key: []byte{1}, Value: []byte{3}},
+			},
+			equal: false,
+		},
+		{
+			name: "Key",
+			a: Attributes{
+				{Key: []byte{1}, Value: []byte{3}},
+			},
+			b: Attributes{
+				{Key: []byte{2}, Value: []byte{3}},
+			},
+			equal: false,
+		},
+		{
+			name: "Values",
+			a: Attributes{
+				{Key: []byte{1}, Value: []byte{2}},
+				{Key: []byte{2}, Value: []byte{5}},
+			},
+			b: Attributes{
+				{Key: []byte{1}, Value: []byte{2}},
+			},
+			equal: false,
+		},
+		{
+			name: "ValuesB",
+			a: Attributes{
+				{Key: []byte{2}, Value: []byte{1}},
+			},
+			b: Attributes{
+				{Key: []byte{1}, Value: []byte{2}},
+				{Key: []byte{2}, Value: []byte{1}},
+			},
+			equal: false,
+		},
+		{
+			name: "ValuesDuplicate",
+			a: Attributes{
+				{Key: []byte{1}, Value: []byte{1}},
+				{Key: []byte{1}, Value: []byte{1}},
+			},
+			b: Attributes{
+				{Key: []byte{2}, Value: []byte{1}},
+				{Key: []byte{1}, Value: []byte{1}},
+			},
+			equal: false,
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.a.Equal(tt.b) != tt.equal {
+				t.Error("check failed")
+			}
+		})
+	}
+}
+
 func TestCandidate_Reset(t *testing.T) {
 	b := Candidate{
 		Foundation:  3862931549,
