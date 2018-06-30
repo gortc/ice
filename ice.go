@@ -451,7 +451,7 @@ func (p *candidateParser) parse() error {
 	// last is last character offset
 	// of mandatory elements
 	var pos, l, last int
-	fns := []parseFn{
+	fns := [...]parseFn{
 		p.parseFoundation,        // 0
 		p.parseComponentID,       // 1
 		p.parseTransport,         // 2
