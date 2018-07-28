@@ -432,3 +432,21 @@ func TestParseAttribute(t *testing.T) {
 	}
 
 }
+
+func TestAddressType_String(t *testing.T) {
+	for _, tt := range []struct {
+		in  AddressType
+		out string
+	}{
+		{in: AddressIPv4, out: "IPv4"},
+		{in: AddressIPv6, out: "IPv6"},
+		{in: AddressFQDN, out: "FQDN"},
+		{in: AddressFQDN + 10, out: "unknown"},
+	} {
+		t.Run(tt.out, func(t *testing.T) {
+			if tt.in.String() != tt.out {
+				t.Errorf("%q", tt.in.String())
+			}
+		})
+	}
+}
