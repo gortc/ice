@@ -11,22 +11,10 @@ bench:
 	go test -bench .
 bench-record:
 	$(GO) test -bench . > "benchmarks/stun-go-$(GO_VERSION).txt"
-fuzz-prepare-msg:
-	go-fuzz-build -func FuzzMessage -o stun-msg-fuzz.zip github.com/gortc/stun
-fuzz-prepare-typ:
-	go-fuzz-build -func FuzzType -o stun-typ-fuzz.zip github.com/gortc/stun
-fuzz-prepare-setters:
-	go-fuzz-build -func FuzzSetters -o stun-setters-fuzz.zip github.com/gortc/stun
-fuzz-msg:
-	go-fuzz -bin=./stun-msg-fuzz.zip -workdir=examples/stun-msg
-fuzz-typ:
-	go-fuzz -bin=./stun-typ-fuzz.zip -workdir=examples/stun-typ
-fuzz-setters:
-	go-fuzz -bin=./stun-setters-fuzz.zip -workdir=examples/stun-setters
-fuzz-test:
-	go test -tags gofuzz -run TestFuzz -v .
-fuzz-reset-setters:
-	rm -f -v -r stun-setters-fuzz.zip examples/stun-setters
+fuzz-prepare-candidate:
+	go-fuzz-build -func FuzzCandidate -o stun-candidate-fuzz.zip github.com/gortc/ice
+fuzz-candidate:
+	go-fuzz -bin=./stun-candidate-fuzz.zip -workdir=fuzz/stun-setters
 lint:
 	@echo "linting on $(PROCS) cores"
 	@gometalinter \
