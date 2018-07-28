@@ -95,6 +95,7 @@ const (
 var candidateTypeToStr = map[CandidateType]string{
 	CandidateHost:            "host",
 	CandidateServerReflexive: "server-reflexive",
+	CandidatePeerReflexive:   "peer-reflexive",
 	CandidateRelay:           "relay",
 }
 

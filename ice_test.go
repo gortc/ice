@@ -533,3 +533,19 @@ func TestConnectionAddress_String(t *testing.T) {
 		})
 	}
 }
+
+func TestCandidateType_String(t *testing.T) {
+	for _, tt := range []struct {
+		in  CandidateType
+		out string
+	}{
+		{in: CandidatePeerReflexive, out: "peer-reflexive"},
+		{in: CandidateRelay + 10, out: "unknown"},
+	} {
+		t.Run(tt.out, func(t *testing.T) {
+			if tt.in.String() != tt.out {
+				t.Errorf("%q", tt.in.String())
+			}
+		})
+	}
+}
