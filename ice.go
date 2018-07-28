@@ -33,7 +33,7 @@ func (a AddressType) String() string {
 	case AddressFQDN:
 		return "FQDN"
 	default:
-		panic("unexpected address type")
+		return "unknown"
 	}
 }
 
