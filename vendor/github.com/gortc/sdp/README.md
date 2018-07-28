@@ -1,17 +1,15 @@
-[![Build Status](https://travis-ci.org/gortc/sdp.svg?branch=master)](https://travis-ci.org/gortc/sdp)
+[![Build Status](https://travis-ci.com/gortc/sdp.svg?branch=master)](https://travis-ci.com/gortc/sdp)
 [![Build status](https://ci.appveyor.com/api/projects/status/gcxr3fq9ebadmu9b?svg=true)](https://ci.appveyor.com/project/ernado/sdp)
 [![Coverage Status](https://coveralls.io/repos/github/gortc/sdp/badge.svg?branch=master)](https://coveralls.io/github/gortc/sdp?branch=master)
 [![GoDoc](https://godoc.org/github.com/gortc/sdp?status.svg)](https://godoc.org/github.com/gortc/sdp)
 
 # SDP go implementation
-[RFC 4566](https://tools.ietf.org/html/rfc4566)
-SDP: Session Description Protocol in golang.
-
-In alpha stage.
+Package sdp implements SDP: Session Description Protocol [[RFC 4566](https://tools.ietf.org/html/rfc4566)].
+Complies to [gortc principles](https://github.com/gortc/dev/blob/master/README.md#principles) as core package. In alpha stage.
 
 ### Examples
 See [examples](https://github.com/gortc/sdp/tree/master/examples) folder.
-Also there is [online SDP example](https://cydev.ru/sdp/) (temporary unavailable) that gets
+Also there is [online SDP example](https://gortc.io/x/sdp/) that gets
 `RTCPeerConnection.localDescription.sdp` using WebRTC, 
 sends it to server, decodes as `sdp.Session` and renders it on web page.
 

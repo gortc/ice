@@ -9,7 +9,7 @@ import (
 )
 
 func appendSpace(v []byte) []byte {
-	return appendRune(v, ' ')
+	return appendRune(v, fieldsDelimiter)
 }
 
 func appendInt(v []byte, i int) []byte {
@@ -48,11 +48,7 @@ func appendByte(v []byte, i byte) []byte {
 	if i == 0 {
 		return appendRune(v, '0')
 	}
-	if i > 0 {
-		return appendUint(v, int(i))
-	}
-	// ALLOCATIONS: suboptimal. BenchmarkAppendByte.
-	return append(v, strconv.Itoa(int(i))...)
+	return appendUint(v, int(i))
 }
 
 func appendJoinStrings(b []byte, v ...string) []byte {
@@ -247,7 +243,7 @@ func (c ConnectionData) ConnectionAddress() string {
 
 func (c ConnectionData) String() string {
 	return fmt.Sprintf("%s %s %s",
-		c.NetworkType, c.AddressType, c.ConnectionAddress(),
+		c.getAddressType(), c.getAddressType(), c.ConnectionAddress(),
 	)
 }
 

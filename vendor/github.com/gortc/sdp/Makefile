@@ -3,11 +3,12 @@ lint:
 	@echo "linting on $(PROCS) cores"
 	@gometalinter -e "\.String\(\).+gocyclo" \
 		-e "_test.go.+(gocyclo|errcheck|dupl)" \
-		--enable="lll" --line-length=80 \
+		-e "isZeroOrMore is a pure function but its return value is ignored" \
+		--enable="lll" --line-length=100 \
 		--enable="gofmt" \
-                --disable=gocyclo \
+		--disable=gocyclo \
 		--deadline=300s \
-                --dupl-threshold=70 \
+        --dupl-threshold=70 \
 		-j $(PROCS)
 	@echo "ok"
 install:
@@ -22,3 +23,5 @@ profile:
 	go tool pprof -alloc_space sdp.test mem.out
 profile-cpu:
 	go tool pprof sdp.test cpu.out
+check-api:
+	api -c api/sdp1.txt -next api/next.txt github.com/gortc/sdp

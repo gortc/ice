@@ -2,15 +2,15 @@
 
 
 [[projects]]
-  digest = "1:1c4b932dfe841ca4cf3ef30a4fe7ac5e637da045b10991d89ce4fdaef6484214"
+  digest = "1:8f59861d067fdad54bc68a2cd4f7d9e13874030e11c9f75f60c1ee01de1a2151"
   name = "github.com/gortc/sdp"
   packages = ["."]
   pruneopts = "UT"
-  revision = "8c03e00ae01b25f34ab59a5f76067fc0b4da22f4"
-  version = "v0.9.2"
+  revision = "e086aaaa9d2212719e9e86414fd004c7bb55a58e"
+  version = "v0.12.2"
 
 [[projects]]
-  digest = "1:4e154aae08ca3a1f6fce1e6e4c694bb958cb5f1bda5c1576b5887102ea13e18e"
+  digest = "1:cdbed6a7b574b13bbabcd8c36c5be56d6444789bab21fcd37d39655eab0b2141"
   name = "github.com/klauspost/compress"
   packages = [
     "flate",
@@ -18,8 +18,8 @@
     "zlib",
   ]
   pruneopts = "UT"
-  revision = "5fb1f31b0a61e9858f12f39266e059848a5f1cea"
-  version = "v1.3.0"
+  revision = "b939724e787a27c0005cabe3f78e7ed7987ac74f"
+  version = "v1.4.0"
 
 [[projects]]
   digest = "1:4ea0668d490ca32a38366453a486e2e8c60fbdaf1f2607c96b4a093d8a5c8de7"

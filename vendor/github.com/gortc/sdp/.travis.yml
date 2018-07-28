@@ -6,9 +6,13 @@ go:
 before_install:
   - go get github.com/mattn/goveralls
   - go get golang.org/x/tools/cmd/cover
+  - go get gortc.io/api
+  - go get github.com/alecthomas/gometalinter
+  - gometalinter --install
 
-install:
- - go get -v -t .
+install: true
 
 script:
- - $HOME/gopath/bin/goveralls -service=travis-ci -v
+  - $HOME/gopath/bin/goveralls -service=travis-ci -v
+  - make check-api
+  - make lint

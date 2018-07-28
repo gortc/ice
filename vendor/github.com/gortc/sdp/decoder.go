@@ -53,7 +53,7 @@ type Message struct {
 	TZAdjustments []TimeZone
 }
 
-// Timing wraps "repeat times" and 	"timing" information.
+// Timing wraps "repeat times" and "timing" information.
 type Timing struct {
 	Start   time.Time
 	End     time.Time
@@ -214,7 +214,7 @@ func (s section) String() string {
 	case sectionMedia:
 		return "m"
 	default:
-		panic("unexpected")
+		panic("BUG: section overflow")
 	}
 }
 
@@ -270,10 +270,6 @@ func isExpected(t Type, s section, pos int) error {
 			if isOptional(expected) {
 				continue
 			}
-			if isZeroOrMore(expected) {
-				//logger.Printf("%s is not necessary", expected)
-				continue
-			}
 		}
 	}
 
@@ -291,10 +287,6 @@ func isExpected(t Type, s section, pos int) error {
 	case sectionTime:
 		if isExpected(t, sectionSession, orderingAfterTime) == nil {
 			//logger.Printf("t->s")
-			return nil
-		}
-		if isExpected(t, sectionMedia, 0) == nil {
-			//logger.Printf("t->m")
 			return nil
 		}
 	case sectionMedia:
@@ -319,7 +311,7 @@ func getOrdering(s section) ordering {
 	case sectionTime:
 		return orderingTime
 	default:
-		panic("unexpected section")
+		panic("BUG: section overflow")
 	}
 }
 
@@ -350,7 +342,7 @@ func newSectionDecodeError(s section, m string) DecodeError {
 	return newDecodeError(place, m)
 }
 
-func (d *Decoder) decodeKV() (string, string) {
+func (d *Decoder) decodeKV() (string, string, error) {
 	var (
 		key     []byte
 		value   []byte
@@ -367,7 +359,14 @@ func (d *Decoder) decodeKV() (string, string) {
 			key = append(key, v)
 		}
 	}
-	return string(key), string(value)
+
+	if isValue && len(value) < 1 {
+		msg := fmt.Sprintf("attribute without value")
+		err := newSectionDecodeError(d.section, msg)
+		return "", "", err
+	}
+
+	return string(key), string(value), nil
 }
 
 func (d *Decoder) decodeTiming(m *Message) error {
@@ -440,7 +439,10 @@ func addAttribute(a Attributes, k, v string) Attributes {
 }
 
 func (d *Decoder) decodeAttribute(m *Message) error {
-	k, v := d.decodeKV()
+	k, v, err := d.decodeKV()
+	if err != nil {
+		return errors.Wrap(err, "failed to decode attribute")
+	}
 	switch d.section {
 	case sectionMedia:
 		d.m.Attributes = addAttribute(d.m.Attributes, k, v)
@@ -480,7 +482,10 @@ func (d *Decoder) decodeURI(m *Message) error {
 }
 
 func (d *Decoder) decodeEncryption(m *Message) error {
-	k, v := d.decodeKV()
+	k, v, err := d.decodeKV()
+	if err != nil {
+		return errors.Wrap(err, "failed to decode encryption")
+	}
 	e := Encryption{
 		Key:    v,
 		Method: k,
@@ -494,9 +499,16 @@ func (d *Decoder) decodeEncryption(m *Message) error {
 	return nil
 }
 
+// ErrFailedToDecodeIP means that decoder failed to parse IP.
+var ErrFailedToDecodeIP = errors.New("invalid IP")
+
 func decodeIP(dst net.IP, v []byte) (net.IP, error) {
 	// ALLOCATIONS: suboptimal.
-	return net.ParseIP(string(v)), nil
+	ip := net.ParseIP(string(v))
+	if ip == nil {
+		return dst, ErrFailedToDecodeIP
+	}
+	return ip, nil
 }
 
 func decodeByte(dst []byte) (byte, error) {
@@ -523,7 +535,7 @@ func (d *Decoder) decodeConnectionData(m *Message) error {
 		err               error
 	)
 	for _, v := range d.v {
-		if v == ' ' {
+		if v == fieldsDelimiter {
 			subField++
 			continue
 		}
@@ -593,7 +605,14 @@ func (d *Decoder) decodeConnectionData(m *Message) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to decode connection data")
 	}
-	isV4 := isIPv4(m.Connection.IP)
+
+	var isV4 bool
+	switch d.section {
+	case sectionMedia:
+		isV4 = isIPv4(d.m.Connection.IP)
+	case sectionSession:
+		isV4 = isIPv4(m.Connection.IP)
+	}
 	if len(second) > 0 {
 		if !isV4 {
 			err := d.newFieldError("unexpected TTL for IPv6")
@@ -644,16 +663,18 @@ func (d *Decoder) decodeConnectionData(m *Message) error {
 }
 
 func (d *Decoder) decodeBandwidth(m *Message) error {
-	k, v := d.decodeKV()
+	k, v, err := d.decodeKV()
+	if err != nil {
+		return errors.Wrap(err, "failed to decode bandwidth")
+	}
 	if len(v) == 0 {
 		msg := "no value specified"
 		err := newSectionDecodeError(d.section, msg)
 		return errors.Wrap(err, "failed to decode bandwidth")
 	}
 	var (
-		t   BandwidthType
-		n   int
-		err error
+		t BandwidthType
+		n int
 	)
 	switch bandWidthType := BandwidthType(k); bandWidthType {
 	case BandwidthApplicationSpecific, BandwidthConferenceTotal:
@@ -691,7 +712,7 @@ func (d *Decoder) decodeTimingField(m *Message) error {
 		err          error
 	)
 	for _, v := range d.v {
-		if v == ' ' {
+		if v == fieldsDelimiter {
 			if isEndV {
 				msg := "unexpected second space in timing"
 				err = newSectionDecodeError(d.section, msg)
@@ -722,13 +743,8 @@ func (d *Decoder) decodeTimingField(m *Message) error {
 	return nil
 }
 
-const (
-	fieldsDelimiter = ' '
-)
-
-func decodeString(v []byte, s *string) error {
+func decodeString(v []byte, s *string) {
 	*s = b2s(v)
-	return nil
 }
 
 func decodeInt(v []byte, i *int) error {
@@ -737,12 +753,28 @@ func decodeInt(v []byte, i *int) error {
 	return err
 }
 
-func subfields(v []byte) [][]byte {
-	return bytes.Split(v, []byte{fieldsDelimiter})
-}
+func (d *Decoder) subfields() ([][]byte, error) {
+	n := bytes.Count(d.v, []byte{fieldsDelimiter})
+	result := make([][]byte, n+1)
+	subField := 0
+	hitSpace := true
+	for _, v := range d.v {
+		if v == fieldsDelimiter {
+			if hitSpace {
+				msg := "unexpected second space in subfields"
+				return nil, newSectionDecodeError(d.section, msg)
+			}
+			subField++
+			hitSpace = true
+			continue
+		} else {
+			hitSpace = false
+		}
 
-func (d *Decoder) subfields() [][]byte {
-	return subfields(d.v)
+		result[subField] = append(result[subField], v)
+	}
+
+	return result[:subField+1], nil
 }
 
 func (d *Decoder) decodeOrigin(m *Message) error {
@@ -753,31 +785,26 @@ func (d *Decoder) decodeOrigin(m *Message) error {
 	var (
 		err error
 	)
-	p := d.subfields()
+	p, err := d.subfields()
+	if err != nil {
+		return errors.Wrap(err, "failed to decode origin")
+	}
 	if len(p) != 6 {
 		msg := fmt.Sprintf("unexpected subfields count %d != %d", len(p), 6)
 		err = newSectionDecodeError(d.section, msg)
 		return errors.Wrap(err, "failed to decode origin")
 	}
 	o := m.Origin
-	if err = decodeString(p[0], &o.Username); err != nil {
-		return errors.Wrap(err, "failed to decode username")
-	}
+	decodeString(p[0], &o.Username)
 	if err = decodeInt(p[1], &o.SessionID); err != nil {
 		return errors.Wrap(err, "failed to decode sess-id")
 	}
 	if err = decodeInt(p[2], &o.SessionVersion); err != nil {
 		return errors.Wrap(err, "failed to decode sess-version")
 	}
-	if err = decodeString(p[3], &o.NetworkType); err != nil {
-		return errors.Wrap(err, "failed to decode net-type")
-	}
-	if err = decodeString(p[4], &o.AddressType); err != nil {
-		return errors.Wrap(err, "failed to decode addres-type")
-	}
-	if err = decodeString(p[5], &o.Address); err != nil {
-		return errors.Wrap(err, "failed to decode address")
-	}
+	decodeString(p[3], &o.NetworkType)
+	decodeString(p[4], &o.AddressType)
+	decodeString(p[5], &o.Address)
 	m.Origin = o
 	return nil
 }
@@ -819,17 +846,19 @@ func decodeInterval(b []byte, v *time.Duration) error {
 	return nil
 }
 
-func shouldBePositive(i int) {
-	if i <= 0 {
-		panic("value should be positive")
-	}
-}
-
 func (d *Decoder) decodeRepeatTimes(m *Message) error {
 	// r=0<repeat interval> 1<active duration> 2<offsets from start-time>
-	shouldBePositive(len(m.Timing)) // should be newer blank
-	p := d.subfields()
 	var err error
+	if len(m.Timing) < 1 {
+		msg := fmt.Sprintf("repeat without timing")
+		err = newSectionDecodeError(d.section, msg)
+		return errors.Wrap(err, "failed to decode repeat")
+	}
+
+	p, err := d.subfields()
+	if err != nil {
+		return errors.Wrap(err, "failed to decode repeat")
+	}
 	if len(p) < 3 {
 		msg := fmt.Sprintf("unexpected subfields count %d < 3", len(p))
 		err = newSectionDecodeError(d.section, msg)
@@ -854,11 +883,13 @@ func (d *Decoder) decodeRepeatTimes(m *Message) error {
 
 func (d *Decoder) decodeTimeZoneAdjustments(m *Message) error {
 	// z=<adjustment time> <offset> <adjustment time> <offset> ....
-	p := d.subfields()
+	p, err := d.subfields()
+	if err != nil {
+		return errors.Wrap(err, "failed to decode tz-adjustments")
+	}
 	var (
 		adjustment TimeZone
 		t          uint64
-		err        error
 	)
 	if len(p)%2 != 0 {
 		msg := fmt.Sprintf("unexpected subfields count %d", len(p))
@@ -884,15 +915,16 @@ func (d *Decoder) decodeMediaDescription(m *Message) error {
 		desc MediaDescription
 		err  error
 	)
-	p := d.subfields()
-	if len(p) < 4 {
-		msg := fmt.Sprintf("unexpected subfields count %d < 4", len(p))
+	p, err := d.subfields()
+	if err != nil {
+		return errors.Wrap(err, "failed to decode media description")
+	}
+	if len(p) < 3 {
+		msg := fmt.Sprintf("unexpected subfields count %d < 3", len(p))
 		err = newSectionDecodeError(d.section, msg)
 		return errors.Wrap(err, "failed to decode media description")
 	}
-	if err = decodeString(p[0], &desc.Type); err != nil {
-		return errors.Wrap(err, "failed to decode media type")
-	}
+	decodeString(p[0], &desc.Type)
 	// port: port/ports_number
 	pp := bytes.Split(p[1], []byte{'/'})
 	if err = decodeInt(pp[0], &desc.Port); err != nil {
@@ -903,11 +935,11 @@ func (d *Decoder) decodeMediaDescription(m *Message) error {
 			return errors.Wrap(err, "failed to decode ports number")
 		}
 	}
-	if err = decodeString(p[2], &desc.Protocol); err != nil {
-		return errors.Wrap(err, "failed to decode protocol")
+	decodeString(p[2], &desc.Protocol)
+	if len(p) > 3 {
+		desc.Format = string(bytes.Join(p[3:], []byte{fieldsDelimiter}))
+		d.m.Description = desc
 	}
-	desc.Format = string(bytes.Join(p[3:], []byte{fieldsDelimiter}))
-	d.m.Description = desc
 	return nil
 }
 
@@ -944,7 +976,9 @@ func (d *Decoder) decodeField(m *Message) error {
 	case TypeMediaDescription:
 		return d.decodeMediaDescription(m)
 	default:
-		panic("unexpected field")
+		// d.t is explicitly checked before calling decodeField,
+		// so this code must be unreachable.
+		panic("BUG: unexpected filed type in decodeField")
 	}
 }
 
@@ -981,6 +1015,18 @@ func (d *Decoder) decodeSession(m *Message) error {
 			}
 		}
 	}
+
+	if m.Origin.Address == "" {
+		msg := fmt.Sprintf("origin address not set")
+		err := newSectionDecodeError(sectionSession, msg)
+		return errors.Wrap(err, "failed to decode message")
+	}
+	if m.Name == "" {
+		msg := fmt.Sprintf("session name not set")
+		err := newSectionDecodeError(sectionSession, msg)
+		return errors.Wrap(err, "failed to decode message")
+	}
+
 	return nil
 }
 
@@ -994,5 +1040,5 @@ func (d *Decoder) Decode(m *Message) error {
 // Note it may break if string and/or slice header will change
 // in the future go versions.
 func b2s(b []byte) string {
-	return *(*string)(unsafe.Pointer(&b))
+	return *(*string)(unsafe.Pointer(&b)) // #nosec
 }
