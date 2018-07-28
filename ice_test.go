@@ -450,3 +450,55 @@ func TestAddressType_String(t *testing.T) {
 		})
 	}
 }
+
+func TestConnectionAddress_Equal(t *testing.T) {
+	for _, tt := range []struct {
+		name  string
+		a, b  ConnectionAddress
+		equal bool
+	}{
+		{
+			name:  "Blank",
+			equal: true,
+		},
+		{
+			name: "HostNonFQDN",
+			b: ConnectionAddress{
+				Host: []byte{1},
+			},
+			equal: true,
+		},
+		{
+			name: "HostFQDN",
+			a: ConnectionAddress{
+				Type: AddressFQDN,
+			},
+			b: ConnectionAddress{
+				Type: AddressFQDN,
+				Host: []byte{1},
+			},
+			equal: false,
+		},
+		{
+			name: "IP",
+			b: ConnectionAddress{
+				IP: net.IPv4(1, 0, 0, 1),
+			},
+			equal: false,
+		},
+		{
+			name: "Type",
+			b: ConnectionAddress{
+				Type: AddressIPv6,
+			},
+			equal: false,
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.a.Equal(tt.b) != tt.equal {
+				t.Error("equality test failed")
+			}
+		})
+
+	}
+}
