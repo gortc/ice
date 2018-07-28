@@ -502,3 +502,34 @@ func TestConnectionAddress_Equal(t *testing.T) {
 
 	}
 }
+
+func TestConnectionAddress_String(t *testing.T) {
+	for _, tt := range []struct {
+		in  ConnectionAddress
+		out string
+	}{
+		{
+			in:  ConnectionAddress{},
+			out: "<nil>",
+		},
+		{
+			in: ConnectionAddress{
+				Type: AddressFQDN,
+				Host: []byte("gortc.io"),
+			},
+			out: "gortc.io",
+		},
+		{
+			in: ConnectionAddress{
+				IP: net.IPv4(127, 0, 0, 1),
+			},
+			out: "127.0.0.1",
+		},
+	} {
+		t.Run(tt.out, func(t *testing.T) {
+			if tt.in.String() != tt.out {
+				t.Errorf("%q", tt.in)
+			}
+		})
+	}
+}
