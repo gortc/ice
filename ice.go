@@ -24,17 +24,14 @@ const (
 	AddressFQDN
 )
 
+var addressTypeToStr = map[AddressType]string{
+	AddressIPv4: "IPv4",
+	AddressIPv6: "IPv6",
+	AddressFQDN: "FQDN",
+}
+
 func (a AddressType) String() string {
-	switch a {
-	case AddressIPv4:
-		return "IPv4"
-	case AddressIPv6:
-		return "IPv6"
-	case AddressFQDN:
-		return "FQDN"
-	default:
-		return "unknown"
-	}
+	return strOrUnknown(addressTypeToStr[a])
 }
 
 // ConnectionAddress represents address that can be ipv4/6 or FQDN.
@@ -95,19 +92,21 @@ const (
 	CandidateRelay                         // "relay"
 )
 
-func (c CandidateType) String() string {
-	switch c {
-	case CandidateHost:
-		return "host"
-	case CandidateServerReflexive:
-		return "server-reflexive"
-	case CandidatePeerReflexive:
-		return "peer-reflexive"
-	case CandidateRelay:
-		return "relay"
-	default:
+var candidateTypeToStr = map[CandidateType]string{
+	CandidateHost:            "host",
+	CandidateServerReflexive: "server-reflexive",
+	CandidateRelay:           "relay",
+}
+
+func strOrUnknown(str string) string {
+	if len(str) == 0 {
 		return "unknown"
 	}
+	return str
+}
+
+func (c CandidateType) String() string {
+	return strOrUnknown(candidateTypeToStr[c])
 }
 
 const (
