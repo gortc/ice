@@ -271,13 +271,13 @@ func (t TransportType) String() string {
 
 // candidateParser should parse []byte into Candidate.
 //
-// a=candidate:3862931549 1 udp 2113937151 192.168.220.128 56032 typ host generation 0 network-cost 50
-//     foundation ---┘    |  |      |            |          |
-//   component id --------┘  |      |            |          |
-//      transport -----------┘      |            |          |
-//       priority ------------------┘            |          |
-//  conn. address -------------------------------┘          |
-//           port ------------------------------------------┘
+// a=candidate:3862931549 1 udp 2113937151 192.168.1.2 56032 typ host generation 0 network-cost 50
+//     foundation ---┘    |  |      |            |         |
+//   component id --------┘  |      |            |         |
+//      transport -----------┘      |            |         |
+//       priority ------------------┘            |         |
+//  conn. address -------------------------------┘         |
+//           port -----------------------------------------┘
 type candidateParser struct {
 	buf []byte
 	c   *Candidate
@@ -348,7 +348,7 @@ func (p *candidateParser) parseRelatedPort(v []byte) error {
 // Note it may break if string and/or slice header will change
 // in the future go versions.
 func b2s(b []byte) string {
-	return *(*string)(unsafe.Pointer(&b))
+	return *(*string)(unsafe.Pointer(&b)) // #nosec
 }
 
 func parseIP(dst net.IP, v []byte) net.IP {
@@ -363,10 +363,7 @@ func parseIP(dst net.IP, v []byte) net.IP {
 		}
 	}
 	ip := net.ParseIP(b2s(v))
-	for _, c := range ip {
-		dst = append(dst, c)
-	}
-	return dst
+	return append(dst, ip...)
 }
 
 func (candidateParser) parseAddress(v []byte, target *ConnectionAddress) error {

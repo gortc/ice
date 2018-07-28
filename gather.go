@@ -25,15 +25,15 @@ type precedenceConfig struct {
 func init() {
 	// Initializing precedences for IP.
 	/*
-	      ::1/128               50     0
-	      ::/0                  40     1
-	      ::ffff:0:0/96         35     4
-	      2002::/16             30     2
-	      2001::/32              5     5
-	      fc00::/7               3    13
-	      ::/96                  1     3
-	      fec0::/10              1    11
-	      3ffe::/16              1    12
+	   ::1/128               50     0
+	   ::/0                  40     1
+	   ::ffff:0:0/96         35     4
+	   2002::/16             30     2
+	   2001::/32              5     5
+	   fc00::/7               3    13
+	   ::/96                  1     3
+	   fec0::/10              1    11
+	   3ffe::/16              1    12
 	*/
 	for i, p := range [precedencesCount]struct {
 		cidr  string
