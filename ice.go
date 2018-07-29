@@ -85,11 +85,10 @@ type CandidateType byte
 
 // Set of candidate types.
 const (
-	CandidateUnknown         CandidateType = iota
-	CandidateHost                          // "host"
-	CandidateServerReflexive               // "srflx"
-	CandidatePeerReflexive                 // "prflx"
-	CandidateRelay                         // "relay"
+	CandidateHost            CandidateType = iota // "host"
+	CandidateServerReflexive                      // "srflx"
+	CandidatePeerReflexive                        // "prflx"
+	CandidateRelay                                // "relay"
 )
 
 var candidateTypeToStr = map[CandidateType]string{
