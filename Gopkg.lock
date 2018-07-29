@@ -10,6 +10,17 @@
   version = "v0.12.2"
 
 [[projects]]
+  digest = "1:120bd74a9734c562801f20470981fd0be440d56c9b02b9f53849fd11eb953780"
+  name = "github.com/gortc/stun"
+  packages = [
+    ".",
+    "internal/hmac",
+  ]
+  pruneopts = "UT"
+  revision = "a3050f90de2a372d1b7f009159373987a076f992"
+  version = "v1.10.1"
+
+[[projects]]
   digest = "1:cdbed6a7b574b13bbabcd8c36c5be56d6444789bab21fcd37d39655eab0b2141"
   name = "github.com/klauspost/compress"
   packages = [
@@ -62,6 +73,7 @@
   analyzer-version = 1
   input-imports = [
     "github.com/gortc/sdp",
+    "github.com/gortc/stun",
     "github.com/pkg/errors",
     "github.com/valyala/fasthttp",
   ]

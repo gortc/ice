@@ -1,0 +1,34 @@
+language: go
+
+sudo: required
+
+services:
+  - docker
+
+go:
+  - master
+  - 1.9.x
+  - 1.10.x
+  
+env:
+  - TEST_EXTERNAL=1
+
+matrix:
+  allow_failures:
+    - go: 1.9.x
+    - go: master
+  fast_finish: true
+
+before_install:
+  - go get github.com/alecthomas/gometalinter
+  - gometalinter --install
+
+install: true
+
+script:
+ - ./go.test.sh
+ - make test-integration
+ - make lint
+
+after_success:
+ - bash <(curl -s https://codecov.io/bash)

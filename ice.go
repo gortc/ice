@@ -6,6 +6,7 @@ package ice
 
 import (
 	"bytes"
+	"encoding/binary"
 	"fmt"
 	"net"
 	"unsafe"
@@ -581,3 +582,6 @@ func ParseAttribute(v []byte, c *Candidate) error {
 	err := p.parse()
 	return err
 }
+
+// bin is shorthand for BigEndian.
+var bin = binary.BigEndian
