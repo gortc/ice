@@ -55,7 +55,7 @@ func (c Controlling) AddTo(m *stun.Message) error {
 	return iceControlAttribute(c).AddToAs(m, stun.AttrICEControlling)
 }
 
-// GetFrom decodes ICE-CONTROLLED from message.
+// GetFrom decodes ICE-CONTROLLING from message.
 func (c *Controlling) GetFrom(m *stun.Message) error {
 	return (*iceControlAttribute)(c).GetFromAs(m, stun.AttrICEControlling)
 }
