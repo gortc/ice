@@ -6,7 +6,7 @@
 # ICE
 Package ice implements Interactive Connectivity Establishment (ICE):
 A Protocol for Network Address Translator (NAT) Traversal for Offer/Answer Protocols.
-Complies to [gortc principles](https://github.com/gortc/dev/blob/master/README.md#principles) as core package.
+Complies to [gortc principles](https://gortc.io/#principles) as core package.
 
 Currently in active development, so no guarantees for API backward
 compatibility.
