@@ -196,7 +196,6 @@ func (c Candidate) Equal(b *Candidate) bool {
 	if !c.Attributes.Equal(b.Attributes) {
 		return false
 	}
-
 	return true
 }
 
