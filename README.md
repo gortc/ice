@@ -5,7 +5,8 @@
 [![stability-wip](https://img.shields.io/badge/stability-wip-lightgrey.svg)](https://github.com/mkenney/software-guides/blob/master/STABILITY-BADGES.md#work-in-progress)
 # ICE
 Package ice implements Interactive Connectivity Establishment (ICE):
-A Protocol for Network Address Translator (NAT) Traversal for Offer/Answer Protocols.
+A Protocol for Network Address Translator (NAT) Traversal for Offer/Answer Protocols
+[[RFC 5245Bis](https://tools.ietf.org/html/draft-ietf-ice-rfc5245bis)].
 Complies to [gortc principles](https://gortc.io/#principles) as core package.
 
 Currently in active development, so no guarantees for API backward
