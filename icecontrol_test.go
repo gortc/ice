@@ -30,7 +30,7 @@ func TestControlled_GetFrom(t *testing.T) {
 		m3 := new(stun.Message)
 		m3.Add(stun.AttrICEControlled, make([]byte, 100))
 		var c2 Controlled
-		if err := c2.GetFrom(m3); err == nil {
+		if err := c2.GetFrom(m3); !stun.IsAttrSizeInvalid(err) {
 			t.Error("should error")
 		}
 	})
@@ -60,7 +60,7 @@ func TestControlling_GetFrom(t *testing.T) {
 		m3 := new(stun.Message)
 		m3.Add(stun.AttrICEControlling, make([]byte, 100))
 		var c2 Controlling
-		if err := c2.GetFrom(m3); err == nil {
+		if err := c2.GetFrom(m3); !stun.IsAttrSizeInvalid(err) {
 			t.Error("should error")
 		}
 	})

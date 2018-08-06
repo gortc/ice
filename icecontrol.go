@@ -23,12 +23,8 @@ func (a *iceControlAttribute) GetFromAs(m *stun.Message, t stun.AttrType) error 
 	if err != nil {
 		return err
 	}
-	if len(v) != iceControlSize {
-		return &stun.AttrLengthErr{
-			Attr:     t,
-			Expected: iceControlSize,
-			Got:      len(v),
-		}
+	if err = stun.CheckSize(t, len(v), iceControlSize); err != nil {
+		return err
 	}
 	*a = iceControlAttribute(bin.Uint64(v))
 	return nil

@@ -30,7 +30,7 @@ func TestPriority_GetFrom(t *testing.T) {
 		m3 := new(stun.Message)
 		m3.Add(stun.AttrPriority, make([]byte, 100))
 		var p2 Priority
-		if err := p2.GetFrom(m3); err == nil {
+		if err := p2.GetFrom(m3); !stun.IsAttrSizeInvalid(err) {
 			t.Error("should error")
 		}
 	})

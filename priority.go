@@ -21,12 +21,8 @@ func (p *Priority) GetFrom(m *stun.Message) error {
 	if err != nil {
 		return err
 	}
-	if len(v) != prioritySize {
-		return &stun.AttrLengthErr{
-			Attr:     stun.AttrPriority,
-			Expected: prioritySize,
-			Got:      len(v),
-		}
+	if err = stun.CheckSize(stun.AttrPriority, len(v), prioritySize); err != nil {
+		return err
 	}
 	*p = Priority(bin.Uint32(v))
 	return nil
