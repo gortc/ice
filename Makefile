@@ -46,4 +46,4 @@ test-integration:
 	@cd integration-test && bash ./test.sh
 prepush: test lint test-integration
 check-api:
-	api -c api/stun1.txt github.com/gortc/ice
+	api -c api/ice1.txt github.com/gortc/ice
