@@ -1,18 +1,27 @@
 language: go
 
+sudo: required
+
+services:
+  - docker
+
 go:
   - 1.10.x
-  
-before_install:
-  - go get github.com/mattn/goveralls
-  - go get golang.org/x/tools/cmd/cover
-  - go get gortc.io/api
-  - go get github.com/alecthomas/gometalinter
-  - gometalinter --install
+  - master
 
-install: true
+matrix:
+  allow_failures:
+  - go: master
+  fast_finish: true
+
+install:
+  - make install
 
 script:
-  - $HOME/gopath/bin/goveralls -service=travis-ci -v
+  - make test
   - make check-api
+  - make test-e2e
   - make lint
+
+after_success:
+  - bash <(curl -s https://codecov.io/bash)

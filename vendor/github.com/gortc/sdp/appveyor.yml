@@ -21,11 +21,11 @@ install:
   - g++ --version
 
 build_script:
-  - go install -v ./...
+  - go build -v
 
 test_script:
   - set PATH=C:\gopath\bin;%PATH%
-  - go test -v ./...
+  - go test -v
 
 #artifacts:
 #  - path: '%GOPATH%\bin\*.exe'

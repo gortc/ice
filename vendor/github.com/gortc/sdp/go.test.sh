@@ -3,14 +3,8 @@
 set -e
 touch coverage.txt
 
-# test fuzz inputs
-go test -tags gofuzz -run TestFuzz -v .
-
 # quick-test without -race
 go test ./...
-
-# test with "debug" tag
-go test -tags debug ./...
 
 for d in $(go list ./... | grep -v vendor); do
     go test -race -coverprofile=profile.out -covermode=atomic "$d"

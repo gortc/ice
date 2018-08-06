@@ -24,6 +24,9 @@
 #   go-tests = true
 #   unused-packages = true
 
+[[constraint]]
+  name = "github.com/gortc/stun"
+  version = "1.13"
 
 [[constraint]]
   name = "github.com/gortc/sdp"

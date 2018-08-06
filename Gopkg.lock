@@ -2,23 +2,23 @@
 
 
 [[projects]]
-  digest = "1:8f59861d067fdad54bc68a2cd4f7d9e13874030e11c9f75f60c1ee01de1a2151"
+  digest = "1:c42eab13fe7c09d506781f41288beb294ae35f33f24074b988b8f83a6182f8b0"
   name = "github.com/gortc/sdp"
   packages = ["."]
   pruneopts = "UT"
-  revision = "e086aaaa9d2212719e9e86414fd004c7bb55a58e"
-  version = "v0.12.2"
+  revision = "21e0a44ffd967b135b71d316471d764d4536d2ad"
+  version = "v0.12.3"
 
 [[projects]]
-  digest = "1:120bd74a9734c562801f20470981fd0be440d56c9b02b9f53849fd11eb953780"
+  digest = "1:ae8d906e0d66f6a01c86766deb191507238281d3b92e74c1e1983964672c8817"
   name = "github.com/gortc/stun"
   packages = [
     ".",
     "internal/hmac",
   ]
   pruneopts = "UT"
-  revision = "a3050f90de2a372d1b7f009159373987a076f992"
-  version = "v1.10.1"
+  revision = "3309b1d3bd0716c7a82ebf5190a8513fea107ca5"
+  version = "v1.13.1"
 
 [[projects]]
   digest = "1:cdbed6a7b574b13bbabcd8c36c5be56d6444789bab21fcd37d39655eab0b2141"
