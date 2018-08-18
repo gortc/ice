@@ -1,4 +1,5 @@
 [![Build Status](https://travis-ci.com/gortc/ice.svg)](https://travis-ci.com/gortc/ice)
+[![Master status](https://tc.gortc.io/app/rest/builds/buildType:(id:ice_MasterStatus)/statusIcon.svg)](https://tc.gortc.io/project.html?projectId=ice&tab=projectOverview&guest=1)
 [![GoDoc](https://godoc.org/github.com/gortc/ice?status.svg)](http://godoc.org/github.com/gortc/ice)
 [![codecov](https://codecov.io/gh/gortc/ice/branch/master/graph/badge.svg)](https://codecov.io/gh/gortc/ice)
 [![Go Report](https://goreportcard.com/badge/github.com/gortc/ice)](http://goreportcard.com/report/gortc/ice)
