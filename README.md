@@ -21,6 +21,11 @@ rfc | status | requirement | description
 ----|--------|-------------|----
 [![RFC5245Bis](https://img.shields.io/badge/RFC-5766Bis-blue.svg)](https://tools.ietf.org/html/draft-ietf-ice-rfc5245bis) | ![status](https://img.shields.io/badge/status-dev-blue.svg) | [![status](https://img.shields.io/badge/requirement-MUST-green.svg)](https://tools.ietf.org/html/rfc2119) | Interactive Connectivity Establishment
 [IPv6](https://tools.ietf.org/html/draft-ietf-rtcweb-transports#section-3.1) | ![status](https://img.shields.io/badge/status-research-orange.svg) | [![status](https://img.shields.io/badge/requirement-MUST-green.svg)](https://tools.ietf.org/html/rfc2119) | IPv6 support
-[![RFC6544](https://img.shields.io/badge/RFC-6544-blue.svg)](https://tools.ietf.org/html/rfc6544) | ![status](https://img.shields.io/badge/status-research-orange.svg) | [![status](https://img.shields.io/badge/requirement-MUST-green.svg)](https://tools.ietf.org/html/rfc2119) | ICE-TCP candidates
+[![RFC6544](https://img.shields.io/badge/RFC-6544-blue.svg)](https://tools.ietf.org/html/rfc6544) [![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fgortc%2Fice.svg?type=shield)](https://app.fossa.io/projects/git%2Bgithub.com%2Fgortc%2Fice?ref=badge_shield)
+| ![status](https://img.shields.io/badge/status-research-orange.svg) | [![status](https://img.shields.io/badge/requirement-MUST-green.svg)](https://tools.ietf.org/html/rfc2119) | ICE-TCP candidates
 [Trickle ICE](https://tools.ietf.org/html/draft-ietf-ice-trickle) | ![status](https://img.shields.io/badge/status-research-orange.svg) | [![status](https://img.shields.io/badge/requirement-MUST-green.svg)](https://tools.ietf.org/html/rfc2119) | Incremental Provisioning of Candidates for the ICE
 [Dual Stack Fairness](https://tools.ietf.org/html/draft-ietf-mmusic-ice-dualstack-fairness) | ![status](https://img.shields.io/badge/status-research-orange.svg) | [![status](https://img.shields.io/badge/requirement-SHOULD-blue.svg)](https://tools.ietf.org/html/rfc2119) | ICE Multihomed and IPv4/IPv6 Dual Stack Fairness
+
+
+## License
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fgortc%2Fice.svg?type=large)](https://app.fossa.io/projects/git%2Bgithub.com%2Fgortc%2Fice?ref=badge_large)
