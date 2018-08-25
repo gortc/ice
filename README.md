@@ -7,7 +7,7 @@
 [![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fgortc%2Fice.svg?type=shield)](https://app.fossa.io/projects/git%2Bgithub.com%2Fgortc%2Fice?ref=badge_shield)
 # ICE
 Package ice implements Interactive Connectivity Establishment (ICE):
-A Protocol for Network Address Translator (NAT) Traversal for Offer/Answer Protocols
+A Protocol for Network Address Translator (NAT) Traversal.
 [[RFC 8445](https://tools.ietf.org/html/rfc8445)].
 Complies to [gortc principles](https://gortc.io/#principles) as core package.
 
