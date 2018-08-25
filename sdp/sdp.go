@@ -10,14 +10,14 @@ import (
 	"github.com/pkg/errors"
 	"github.com/valyala/fasthttp"
 
-	"github.com/gortc/ice/candidate"
+	c "github.com/gortc/ice/candidate"
 )
 
 // ConnectionAddress represents address that can be ipv4/6 or FQDN.
 type ConnectionAddress struct {
 	Host []byte
 	IP   net.IP
-	Type candidate.AddressType
+	Type c.AddressType
 }
 
 // reset sets all fields to zero values.
@@ -26,7 +26,7 @@ func (a *ConnectionAddress) reset() {
 	for i := range a.IP {
 		a.IP[i] = 0
 	}
-	a.Type = candidate.AddressIPv4
+	a.Type = c.AddressIPv4
 }
 
 // Equal returns true if b equals to a.
@@ -35,7 +35,7 @@ func (a ConnectionAddress) Equal(b ConnectionAddress) bool {
 		return false
 	}
 	switch a.Type {
-	case candidate.AddressFQDN:
+	case c.AddressFQDN:
 		return bytes.Equal(a.Host, b.Host)
 	default:
 		return a.IP.Equal(b.IP)
@@ -44,7 +44,7 @@ func (a ConnectionAddress) Equal(b ConnectionAddress) bool {
 
 func (a ConnectionAddress) str() string {
 	switch a.Type {
-	case candidate.AddressFQDN:
+	case c.AddressFQDN:
 		return string(a.Host)
 	default:
 		return a.IP.String()
@@ -72,12 +72,12 @@ const (
 type Candidate struct {
 	ConnectionAddress ConnectionAddress
 	Port              int
-	Transport         candidate.TransportType
+	Transport         c.TransportType
 	TransportValue    []byte
 	Foundation        int
 	ComponentID       int
 	Priority          int
-	Type              candidate.Type
+	Type              c.Type
 	RelatedAddress    ConnectionAddress
 	RelatedPort       int
 
@@ -96,7 +96,7 @@ func (c *Candidate) Reset() {
 	c.RelatedPort = 0
 	c.NetworkCost = 0
 	c.Generation = 0
-	c.Transport = candidate.TransportUnknown
+	c.Transport = c.TransportUnknown
 	c.TransportValue = c.TransportValue[:0]
 	c.Attributes = c.Attributes[:0]
 }
@@ -291,12 +291,12 @@ func (candidateParser) parseAddress(v []byte, target *ConnectionAddress) error {
 	target.IP = parseIP(target.IP, v)
 	if target.IP == nil {
 		target.Host = v
-		target.Type = candidate.AddressFQDN
+		target.Type = c.AddressFQDN
 		return nil
 	}
-	target.Type = candidate.AddressIPv6
+	target.Type = c.AddressIPv6
 	if target.IP.To4() != nil {
-		target.Type = candidate.AddressIPv4
+		target.Type = c.AddressIPv4
 	}
 	return nil
 }
@@ -311,9 +311,9 @@ func (p *candidateParser) parseRelatedAddress(v []byte) error {
 
 func (p *candidateParser) parseTransport(v []byte) error {
 	if bytes.Equal(v, []byte("udp")) || bytes.Equal(v, []byte("UDP")) {
-		p.c.Transport = candidate.TransportUDP
+		p.c.Transport = c.TransportUDP
 	} else {
-		p.c.Transport = candidate.TransportUnknown
+		p.c.Transport = c.TransportUnknown
 		p.c.TransportValue = v
 	}
 	return nil
@@ -481,13 +481,13 @@ func (p *candidateParser) parseGeneration(v []byte) error {
 func (p *candidateParser) parseType(v []byte) error {
 	switch string(v) {
 	case sdpCandidateHost:
-		p.c.Type = candidate.Host
+		p.c.Type = c.Host
 	case sdpCandidatePeerReflexive:
-		p.c.Type = candidate.PeerReflexive
+		p.c.Type = c.PeerReflexive
 	case sdpCandidateRelay:
-		p.c.Type = candidate.Relay
+		p.c.Type = c.Relay
 	case sdpCandidateServerReflexive:
-		p.c.Type = candidate.ServerReflexive
+		p.c.Type = c.ServerReflexive
 	default:
 		return errors.Errorf("unknown candidate %q", v)
 	}
