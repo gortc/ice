@@ -8,8 +8,6 @@ import (
 	"strconv"
 	"unsafe"
 
-	"github.com/pkg/errors"
-
 	ct "github.com/gortc/ice/candidate"
 )
 
@@ -244,7 +242,7 @@ func parseInt(v []byte) (int, error) {
 func (p *candidateParser) parseFoundation(v []byte) error {
 	i, err := parseInt(v)
 	if err != nil {
-		return errors.Wrap(err, "failed to parse foundation")
+		return fmt.Errorf("failed to parse foundation: %v", err)
 	}
 	p.c.Foundation = i
 	return nil
@@ -253,7 +251,7 @@ func (p *candidateParser) parseFoundation(v []byte) error {
 func (p *candidateParser) parseComponentID(v []byte) error {
 	i, err := parseInt(v)
 	if err != nil {
-		return errors.Wrap(err, "failed to parse component ID")
+		return fmt.Errorf("failed to parse component ID: %v", err)
 	}
 	p.c.ComponentID = i
 	return nil
@@ -262,7 +260,7 @@ func (p *candidateParser) parseComponentID(v []byte) error {
 func (p *candidateParser) parsePriority(v []byte) error {
 	i, err := parseInt(v)
 	if err != nil {
-		return errors.Wrap(err, "failed to parse priority")
+		return fmt.Errorf("failed to parse priority: %v", err)
 	}
 	p.c.Priority = i
 	return nil
@@ -271,7 +269,7 @@ func (p *candidateParser) parsePriority(v []byte) error {
 func (p *candidateParser) parsePort(v []byte) error {
 	i, err := parseInt(v)
 	if err != nil {
-		return errors.Wrap(err, "failed to parse port")
+		return fmt.Errorf("failed to parse port: %v", err)
 	}
 	p.c.Port = i
 	return nil
@@ -280,7 +278,7 @@ func (p *candidateParser) parsePort(v []byte) error {
 func (p *candidateParser) parseRelatedPort(v []byte) error {
 	i, err := parseInt(v)
 	if err != nil {
-		return errors.Wrap(err, "failed to parse port")
+		return fmt.Errorf("failed to parse port: %v", err)
 	}
 	p.c.RelatedPort = i
 	return nil
@@ -367,7 +365,7 @@ const (
 // parse populates internal Candidate from buffer.
 func (p *candidateParser) parse() error {
 	if len(p.buf) < minBufLen {
-		return errors.Errorf("buffer too small (%d < %d)", len(p.buf), minBufLen)
+		return fmt.Errorf("buffer too small (%d < %d)", len(p.buf), minBufLen)
 	}
 	// special cases for raw value support:
 	if p.buf[0] == 'a' {
@@ -402,8 +400,8 @@ func (p *candidateParser) parse() error {
 		}
 		// space character reached
 		if err := fns[pos](p.buf[i-l : i]); err != nil {
-			return errors.Wrapf(err, "failed to parse char %d, pos %d",
-				i, pos,
+			return fmt.Errorf("failed to parse char %d, pos %d: %v",
+				i, pos, err,
 			)
 		}
 		pos++ // next element
@@ -460,8 +458,8 @@ func (p *candidateParser) parse() error {
 			Value: buf[vStart:i],
 		}
 		if err := p.parseAttribute(a); err != nil {
-			return errors.Wrapf(err, "failed to parse attribute at char %d",
-				i+last,
+			return fmt.Errorf("failed to parse attribute at char %d: %v",
+				i+last, err,
 			)
 		}
 		// reset offset
@@ -475,7 +473,7 @@ func (p *candidateParser) parse() error {
 func (p *candidateParser) parseNetworkCost(v []byte) error {
 	i, err := parseInt(v)
 	if err != nil {
-		return errors.Wrap(err, "failed to parse network cost")
+		return fmt.Errorf("failed to parse network cost: %v", err)
 	}
 	p.c.NetworkCost = i
 	return nil
@@ -484,7 +482,7 @@ func (p *candidateParser) parseNetworkCost(v []byte) error {
 func (p *candidateParser) parseGeneration(v []byte) error {
 	i, err := parseInt(v)
 	if err != nil {
-		return errors.Wrap(err, "failed to parse generation")
+		return fmt.Errorf("failed to parse generation: %v", err)
 	}
 	p.c.Generation = i
 	return nil
@@ -501,7 +499,7 @@ func (p *candidateParser) parseType(v []byte) error {
 	case sdpCandidateServerReflexive:
 		p.c.Type = ct.ServerReflexive
 	default:
-		return errors.Errorf("unknown candidate %q", v)
+		return fmt.Errorf("unknown candidate %q", v)
 	}
 	return nil
 }

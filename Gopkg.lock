@@ -34,7 +34,6 @@
   input-imports = [
     "github.com/gortc/sdp",
     "github.com/gortc/stun",
-    "github.com/pkg/errors",
   ]
   solver-name = "gps-cdcl"
   solver-version = 1
