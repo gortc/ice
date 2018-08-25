@@ -1,3 +1,4 @@
+// Package candidate contains common types for ice candidate.
 package candidate
 
 // AddressType is type for SDPConnectionAddress.
