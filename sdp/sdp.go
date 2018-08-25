@@ -1,45 +1,20 @@
-// Package ice implements RFC 5245
-// Interactive Connectivity Establishment (ICE):
-// A Protocol for Network Address Translator (NAT)
-// Traversal for Offer/Answer Protocols.
-package ice
+package sdp
 
 import (
 	"bytes"
-	"encoding/binary"
 	"fmt"
-	"net"
-	"unsafe"
-
+	"github.com/gortc/ice/candidate"
 	"github.com/pkg/errors"
 	"github.com/valyala/fasthttp"
+	"net"
+	"unsafe"
 )
-
-// AddressType is type for ConnectionAddress.
-type AddressType byte
-
-// Possible address types.
-const (
-	AddressIPv4 AddressType = iota
-	AddressIPv6
-	AddressFQDN
-)
-
-var addressTypeToStr = map[AddressType]string{
-	AddressIPv4: "IPv4",
-	AddressIPv6: "IPv6",
-	AddressFQDN: "FQDN",
-}
-
-func (a AddressType) String() string {
-	return strOrUnknown(addressTypeToStr[a])
-}
 
 // ConnectionAddress represents address that can be ipv4/6 or FQDN.
 type ConnectionAddress struct {
 	Host []byte
 	IP   net.IP
-	Type AddressType
+	Type candidate.AddressType
 }
 
 // reset sets all fields to zero values.
@@ -48,7 +23,7 @@ func (a *ConnectionAddress) reset() {
 	for i := range a.IP {
 		a.IP[i] = 0
 	}
-	a.Type = AddressIPv4
+	a.Type = candidate.AddressIPv4
 }
 
 // Equal returns true if b equals to a.
@@ -57,7 +32,7 @@ func (a ConnectionAddress) Equal(b ConnectionAddress) bool {
 		return false
 	}
 	switch a.Type {
-	case AddressFQDN:
+	case candidate.AddressFQDN:
 		return bytes.Equal(a.Host, b.Host)
 	default:
 		return a.IP.Equal(b.IP)
@@ -66,7 +41,7 @@ func (a ConnectionAddress) Equal(b ConnectionAddress) bool {
 
 func (a ConnectionAddress) str() string {
 	switch a.Type {
-	case AddressFQDN:
+	case candidate.AddressFQDN:
 		return string(a.Host)
 	default:
 		return a.IP.String()
@@ -77,67 +52,29 @@ func (a ConnectionAddress) String() string {
 	return a.str()
 }
 
-// CandidateType encodes the type of candidate. This specification
-// defines the values "host", "srflx", "prflx", and "relay" for host,
-// server reflexive, peer reflexive, and relayed candidates,
-// respectively. The set of candidate types is extensible for the
-// future.
-type CandidateType byte
-
-// Set of candidate types.
 const (
-	CandidateHost            CandidateType = iota // "host"
-	CandidateServerReflexive                      // "srflx"
-	CandidatePeerReflexive                        // "prflx"
-	CandidateRelay                                // "relay"
+	sdpCandidateHost            = "host"
+	sdpCandidateServerReflexive = "srflx"
+	sdpCandidatePeerReflexive   = "prflx"
+	sdpCandidateRelay           = "relay"
 )
 
-var candidateTypeToStr = map[CandidateType]string{
-	CandidateHost:            "host",
-	CandidateServerReflexive: "server-reflexive",
-	CandidatePeerReflexive:   "peer-reflexive",
-	CandidateRelay:           "relay",
-}
-
-func strOrUnknown(str string) string {
-	if len(str) == 0 {
-		return "unknown"
-	}
-	return str
-}
-
-func (c CandidateType) String() string {
-	return strOrUnknown(candidateTypeToStr[c])
-}
-
-const (
-	candidateHost            = "host"
-	candidateServerReflexive = "srflx"
-	candidatePeerReflexive   = "prflx"
-	candidateRelay           = "relay"
-)
-
-// Candidate is ICE candidate defined in RFC 5245 Section 21.1.1.
+// Candidate is parsed ICE candidate from SDP.
 //
 // This attribute is used with Interactive Connectivity
 // Establishment (ICE), and provides one of many possible candidate
 // addresses for communication. These addresses are validated with
 // an end-to-end connectivity check using Session Traversal Utilities
 // for NAT (STUN)).
-//
-// The candidate attribute can itself be extended. The grammar allows
-// for new name/value pairs to be added at the end of the attribute. An
-// implementation MUST ignore any name/value pairs it doesn't
-// understand.
 type Candidate struct {
 	ConnectionAddress ConnectionAddress
 	Port              int
-	Transport         TransportType
+	Transport         candidate.TransportType
 	TransportValue    []byte
 	Foundation        int
 	ComponentID       int
 	Priority          int
-	Type              CandidateType
+	Type              candidate.Type
 	RelatedAddress    ConnectionAddress
 	RelatedPort       int
 
@@ -156,7 +93,7 @@ func (c *Candidate) Reset() {
 	c.RelatedPort = 0
 	c.NetworkCost = 0
 	c.Generation = 0
-	c.Transport = TransportUnknown
+	c.Transport = candidate.TransportUnknown
 	c.TransportValue = c.TransportValue[:0]
 	c.Attributes = c.Attributes[:0]
 }
@@ -248,24 +185,6 @@ func byteStr(b []byte) string {
 
 func (a Attribute) String() string {
 	return fmt.Sprintf("%v:%v", byteStr(a.Key), byteStr(a.Value))
-}
-
-// TransportType is transport type for candidate.
-type TransportType byte
-
-// Supported transport types.
-const (
-	TransportUDP TransportType = iota
-	TransportUnknown
-)
-
-func (t TransportType) String() string {
-	switch t {
-	case TransportUDP:
-		return "UDP"
-	default:
-		return "Unknown"
-	}
 }
 
 // candidateParser should parse []byte into Candidate.
@@ -369,12 +288,12 @@ func (candidateParser) parseAddress(v []byte, target *ConnectionAddress) error {
 	target.IP = parseIP(target.IP, v)
 	if target.IP == nil {
 		target.Host = v
-		target.Type = AddressFQDN
+		target.Type = candidate.AddressFQDN
 		return nil
 	}
-	target.Type = AddressIPv6
+	target.Type = candidate.AddressIPv6
 	if target.IP.To4() != nil {
-		target.Type = AddressIPv4
+		target.Type = candidate.AddressIPv4
 	}
 	return nil
 }
@@ -389,9 +308,9 @@ func (p *candidateParser) parseRelatedAddress(v []byte) error {
 
 func (p *candidateParser) parseTransport(v []byte) error {
 	if bytes.Equal(v, []byte("udp")) || bytes.Equal(v, []byte("UDP")) {
-		p.c.Transport = TransportUDP
+		p.c.Transport = candidate.TransportUDP
 	} else {
-		p.c.Transport = TransportUnknown
+		p.c.Transport = candidate.TransportUnknown
 		p.c.TransportValue = v
 	}
 	return nil
@@ -558,14 +477,14 @@ func (p *candidateParser) parseGeneration(v []byte) error {
 
 func (p *candidateParser) parseType(v []byte) error {
 	switch string(v) {
-	case candidateHost:
-		p.c.Type = CandidateHost
-	case candidatePeerReflexive:
-		p.c.Type = CandidatePeerReflexive
-	case candidateRelay:
-		p.c.Type = CandidateRelay
-	case candidateServerReflexive:
-		p.c.Type = CandidateServerReflexive
+	case sdpCandidateHost:
+		p.c.Type = candidate.Host
+	case sdpCandidatePeerReflexive:
+		p.c.Type = candidate.PeerReflexive
+	case sdpCandidateRelay:
+		p.c.Type = candidate.Relay
+	case sdpCandidateServerReflexive:
+		p.c.Type = candidate.ServerReflexive
 	default:
 		return errors.Errorf("unknown candidate %q", v)
 	}
@@ -582,5 +501,3 @@ func ParseAttribute(v []byte, c *Candidate) error {
 	return err
 }
 
-// bin is shorthand for BigEndian.
-var bin = binary.BigEndian

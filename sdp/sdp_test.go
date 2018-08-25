@@ -1,4 +1,4 @@
-package ice
+package sdp
 
 import (
 	"bytes"
@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/gortc/ice/candidate"
 	"github.com/gortc/sdp"
 )
 
@@ -146,7 +147,7 @@ func TestCandidate_Reset(t *testing.T) {
 			IP: net.ParseIP("192.168.220.128"),
 		},
 		Port:        56032,
-		Type:        CandidateHost,
+		Type:        candidate.Host,
 		NetworkCost: 50,
 		Attributes: Attributes{
 			Attribute{
@@ -163,7 +164,7 @@ func TestCandidate_Reset(t *testing.T) {
 			IP: net.ParseIP("192.168.220.128"),
 		},
 		Port:        56032,
-		Type:        CandidateHost,
+		Type:        candidate.Host,
 		NetworkCost: 50,
 		Attributes: Attributes{
 			Attribute{
@@ -210,8 +211,8 @@ func TestCandidate_Equal(t *testing.T) {
 		},
 		{
 			name:  "Transport",
-			a:     Candidate{Transport: TransportUDP},
-			b:     Candidate{Transport: TransportUnknown},
+			a:     Candidate{Transport: candidate.TransportUDP},
+			b:     Candidate{Transport: candidate.TransportUnknown},
 			equal: false,
 		},
 		{
@@ -318,7 +319,7 @@ func TestParse(t *testing.T) {
 				IP: net.ParseIP("192.168.220.128"),
 			},
 			Port:        56032,
-			Type:        CandidateHost,
+			Type:        candidate.Host,
 			NetworkCost: 50,
 			Attributes: Attributes{
 				Attribute{
@@ -400,7 +401,7 @@ func TestParseAttribute(t *testing.T) {
 				IP: net.ParseIP("192.168.220.128"),
 			},
 			Port:        56032,
-			Type:        CandidateHost,
+			Type:        candidate.Host,
 			NetworkCost: 50,
 			Attributes: Attributes{
 				Attribute{
@@ -417,16 +418,16 @@ func TestParseAttribute(t *testing.T) {
 		{s[0].Value, expected[0]}, // 0
 	}
 
-	for i, c := range tCases {
-		candidate := new(Candidate)
-		if err := ParseAttribute(c.input, candidate); err != nil {
+	for i, tc := range tCases {
+		c := new(Candidate)
+		if err := ParseAttribute(tc.input, c); err != nil {
 			t.Errorf("[%d]: unexpected error %s",
 				i, err,
 			)
 		}
-		if !c.expected.Equal(candidate) {
+		if !tc.expected.Equal(c) {
 			t.Errorf("[%d]: %v != %v (exp)",
-				i, candidate, c.expected,
+				i, c, tc.expected,
 			)
 		}
 	}
@@ -435,13 +436,13 @@ func TestParseAttribute(t *testing.T) {
 
 func TestAddressType_String(t *testing.T) {
 	for _, tt := range []struct {
-		in  AddressType
+		in  candidate.AddressType
 		out string
 	}{
-		{in: AddressIPv4, out: "IPv4"},
-		{in: AddressIPv6, out: "IPv6"},
-		{in: AddressFQDN, out: "FQDN"},
-		{in: AddressFQDN + 10, out: "unknown"},
+		{in: candidate.AddressIPv4, out: "IPv4"},
+		{in: candidate.AddressIPv6, out: "IPv6"},
+		{in: candidate.AddressFQDN, out: "FQDN"},
+		{in: candidate.AddressFQDN + 10, out: "unknown"},
 	} {
 		t.Run(tt.out, func(t *testing.T) {
 			if tt.in.String() != tt.out {
@@ -471,10 +472,10 @@ func TestConnectionAddress_Equal(t *testing.T) {
 		{
 			name: "HostFQDN",
 			a: ConnectionAddress{
-				Type: AddressFQDN,
+				Type: candidate.AddressFQDN,
 			},
 			b: ConnectionAddress{
-				Type: AddressFQDN,
+				Type: candidate.AddressFQDN,
 				Host: []byte{1},
 			},
 			equal: false,
@@ -489,7 +490,7 @@ func TestConnectionAddress_Equal(t *testing.T) {
 		{
 			name: "Type",
 			b: ConnectionAddress{
-				Type: AddressIPv6,
+				Type: candidate.AddressIPv6,
 			},
 			equal: false,
 		},
@@ -514,7 +515,7 @@ func TestConnectionAddress_String(t *testing.T) {
 		},
 		{
 			in: ConnectionAddress{
-				Type: AddressFQDN,
+				Type: candidate.AddressFQDN,
 				Host: []byte("gortc.io"),
 			},
 			out: "gortc.io",
@@ -536,11 +537,11 @@ func TestConnectionAddress_String(t *testing.T) {
 
 func TestCandidateType_String(t *testing.T) {
 	for _, tt := range []struct {
-		in  CandidateType
+		in  candidate.Type
 		out string
 	}{
-		{in: CandidatePeerReflexive, out: "peer-reflexive"},
-		{in: CandidateRelay + 10, out: "unknown"},
+		{in: candidate.PeerReflexive, out: "peer-reflexive"},
+		{in: candidate.Relay + 10, out: "unknown"},
 	} {
 		t.Run(tt.out, func(t *testing.T) {
 			if tt.in.String() != tt.out {
