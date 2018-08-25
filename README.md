@@ -18,6 +18,15 @@ compatibility.
     - [ ] Basic
     - [ ] Full
     - [ ] [Trickle](https://tools.ietf.org/html/draft-ietf-ice-trickle)
+- [ ] [ice-sip-sdp-21](https://tools.ietf.org/html/draft-ietf-mmusic-ice-sip-sdp-21) SDP Offer/Answer for ICE
+    - [x] candidate
+    - [ ] remote candidate
+    - [ ] ice-lite
+    - [ ] ice-mismatch
+    - [ ] ice-pwd
+    - [ ] ice-ufrag
+    - [ ] ice-options
+    - [ ] ice-pacing
 - [ ] [RFC 6544](https://tools.ietf.org/html/draft-ietf-ice-rfc5245bis) — TCP Candidates with ICE
 - [ ] [rtcweb-19](https://tools.ietf.org/html/draft-ietf-rtcweb-overview-19) — WebRTC
     - [ ] [rtcweb-transports-17](https://tools.ietf.org/html/draft-ietf-rtcweb-transports-17) — Transports
