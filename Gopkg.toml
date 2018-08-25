@@ -36,10 +36,6 @@
   name = "github.com/pkg/errors"
   version = "0.8.0"
 
-[[constraint]]
-  name = "github.com/valyala/fasthttp"
-  version = "20180529.0.0"
-
 [prune]
   go-tests = true
   unused-packages = true

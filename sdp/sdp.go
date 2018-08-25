@@ -5,12 +5,11 @@ import (
 	"bytes"
 	"fmt"
 	"net"
+	"strconv"
 	"unsafe"
 
-	"github.com/pkg/errors"
-	"github.com/valyala/fasthttp"
-
 	c "github.com/gortc/ice/candidate"
+	"github.com/pkg/errors"
 )
 
 // ConnectionAddress represents address that can be ipv4/6 or FQDN.
@@ -90,50 +89,50 @@ type Candidate struct {
 }
 
 // Reset sets all fields to zero values.
-func (c *Candidate) Reset() {
-	c.ConnectionAddress.reset()
-	c.RelatedAddress.reset()
-	c.RelatedPort = 0
-	c.NetworkCost = 0
-	c.Generation = 0
-	c.Transport = c.TransportUnknown
-	c.TransportValue = c.TransportValue[:0]
-	c.Attributes = c.Attributes[:0]
+func (ct *Candidate) Reset() {
+	ct.ConnectionAddress.reset()
+	ct.RelatedAddress.reset()
+	ct.RelatedPort = 0
+	ct.NetworkCost = 0
+	ct.Generation = 0
+	ct.Transport = c.TransportUnknown
+	ct.TransportValue = ct.TransportValue[:0]
+	ct.Attributes = ct.Attributes[:0]
 }
 
 // Equal returns true if b candidate is equal to c.
-func (c Candidate) Equal(b *Candidate) bool {
-	if !c.ConnectionAddress.Equal(b.ConnectionAddress) {
+func (ct Candidate) Equal(b *Candidate) bool {
+	if !ct.ConnectionAddress.Equal(b.ConnectionAddress) {
 		return false
 	}
-	if c.Port != b.Port {
+	if ct.Port != b.Port {
 		return false
 	}
-	if c.Transport != b.Transport {
+	if ct.Transport != b.Transport {
 		return false
 	}
-	if !bytes.Equal(c.TransportValue, b.TransportValue) {
+	if !bytes.Equal(ct.TransportValue, b.TransportValue) {
 		return false
 	}
-	if c.Foundation != b.Foundation {
+	if ct.Foundation != b.Foundation {
 		return false
 	}
-	if c.ComponentID != b.ComponentID {
+	if ct.ComponentID != b.ComponentID {
 		return false
 	}
-	if c.Priority != b.Priority {
+	if ct.Priority != b.Priority {
 		return false
 	}
-	if c.Type != b.Type {
+	if ct.Type != b.Type {
 		return false
 	}
-	if c.NetworkCost != b.NetworkCost {
+	if ct.NetworkCost != b.NetworkCost {
 		return false
 	}
-	if c.Generation != b.Generation {
+	if ct.Generation != b.Generation {
 		return false
 	}
-	if !c.Attributes.Equal(b.Attributes) {
+	if !ct.Attributes.Equal(b.Attributes) {
 		return false
 	}
 	return true
@@ -211,12 +210,7 @@ const (
 )
 
 func parseInt(v []byte) (int, error) {
-	if len(v) > 1 && v[0] == '-' && v[1] != '-' {
-		// Integer is negative.
-		i, err := parseInt(v[1:])
-		return -i, err
-	}
-	return fasthttp.ParseUint(v)
+	return strconv.Atoi(b2s(v))
 }
 
 func (p *candidateParser) parseFoundation(v []byte) error {
@@ -273,16 +267,6 @@ func b2s(b []byte) string {
 }
 
 func parseIP(dst net.IP, v []byte) net.IP {
-	for _, c := range v {
-		if c == '.' {
-			var err error
-			dst, err = fasthttp.ParseIPv4(dst, v)
-			if err != nil {
-				return nil
-			}
-			return dst
-		}
-	}
 	ip := net.ParseIP(b2s(v))
 	return append(dst, ip...)
 }
@@ -377,13 +361,13 @@ func (p *candidateParser) parse() error {
 		p.parseConnectionAddress, // 4
 		p.parsePort,              // 5
 	}
-	for i, c := range p.buf {
+	for i, b := range p.buf {
 		if pos > mandatoryElements-1 {
 			// saving offset
 			last = i
 			break
 		}
-		if c != sp {
+		if b != sp {
 			// non-space character
 			l++
 			continue
@@ -410,9 +394,9 @@ func (p *candidateParser) parse() error {
 	// subslicing to simplify offset calculation
 	buf := p.buf[last-1:]
 	// saving every k:v pair ignoring spaces
-	for i, c := range buf {
-		if c != sp && i != len(buf)-1 {
-			// char is non-space or end of buffer
+	for i, b := range buf {
+		if b != sp && i != len(buf)-1 {
+			// b is non-space or end of buffer
 			if start == 0 {
 				// key not started
 				start = i
@@ -424,7 +408,7 @@ func (p *candidateParser) parse() error {
 			}
 			continue
 		}
-		// char is space or end of buf reached
+		// b is space or end of buf reached
 		if start == 0 {
 			// key not started, skipping
 			continue
