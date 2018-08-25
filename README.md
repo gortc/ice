@@ -8,14 +8,14 @@
 # ICE
 Package ice implements Interactive Connectivity Establishment (ICE):
 A Protocol for Network Address Translator (NAT) Traversal for Offer/Answer Protocols
-[[RFC 5245Bis](https://tools.ietf.org/html/draft-ietf-ice-rfc5245bis)].
+[[RFC 8445](https://tools.ietf.org/html/rfc8445)].
 Complies to [gortc principles](https://gortc.io/#principles) as core package.
 
 Currently in active development, so no guarantees for API backward
 compatibility.
 
 ## Supported RFCs
-- [ ] [RFC 5245Bis](https://tools.ietf.org/html/draft-ietf-ice-rfc5245bis) — Interactive Connectivity Establishment
+- [ ] [RFC 8445](https://tools.ietf.org/html/rfc8445) — Interactive Connectivity Establishment
     - [ ] Basic
     - [ ] Full
     - [ ] [Trickle](https://tools.ietf.org/html/draft-ietf-ice-trickle)
