@@ -1,26 +1,6 @@
 // Package candidate contains common types for ice candidate.
 package candidate
 
-// AddressType is type for SDPConnectionAddress.
-type AddressType byte
-
-// Possible address types.
-const (
-	AddressIPv4 AddressType = iota
-	AddressIPv6
-	AddressFQDN
-)
-
-var addressTypeToStr = map[AddressType]string{
-	AddressIPv4: "IPv4",
-	AddressIPv6: "IPv6",
-	AddressFQDN: "FQDN",
-}
-
-func (a AddressType) String() string {
-	return strOrUnknown(addressTypeToStr[a])
-}
-
 // Type encodes the type of candidate. This specification
 // defines the values "host", "srflx", "prflx", and "relay" for host,
 // server reflexive, peer reflexive, and relayed candidates,
@@ -71,4 +51,3 @@ func (t TransportType) String() string {
 		return "Unknown"
 	}
 }
-

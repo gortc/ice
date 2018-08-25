@@ -13,11 +13,38 @@ import (
 	ct "github.com/gortc/ice/candidate"
 )
 
+// AddressType is type for Address.
+type AddressType byte
+
+// Possible address types.
+const (
+	AddressIPv4 AddressType = iota
+	AddressIPv6
+	AddressFQDN
+)
+
+func strOrUnknown(str string) string {
+	if len(str) == 0 {
+		return "unknown"
+	}
+	return str
+}
+
+var addressTypeToStr = map[AddressType]string{
+	AddressIPv4: "IPv4",
+	AddressIPv6: "IPv6",
+	AddressFQDN: "FQDN",
+}
+
+func (a AddressType) String() string {
+	return strOrUnknown(addressTypeToStr[a])
+}
+
 // Address represents address that can be ipv4/6 or FQDN.
 type Address struct {
 	Host []byte
 	IP   net.IP
-	Type ct.AddressType
+	Type AddressType
 }
 
 // reset sets all fields to zero values.
@@ -26,7 +53,7 @@ func (a *Address) reset() {
 	for i := range a.IP {
 		a.IP[i] = 0
 	}
-	a.Type = ct.AddressIPv4
+	a.Type = AddressIPv4
 }
 
 // Equal returns true if b equals to a.
@@ -35,7 +62,7 @@ func (a Address) Equal(b Address) bool {
 		return false
 	}
 	switch a.Type {
-	case ct.AddressFQDN:
+	case AddressFQDN:
 		return bytes.Equal(a.Host, b.Host)
 	default:
 		return a.IP.Equal(b.IP)
@@ -44,7 +71,7 @@ func (a Address) Equal(b Address) bool {
 
 func (a Address) str() string {
 	switch a.Type {
-	case ct.AddressFQDN:
+	case AddressFQDN:
 		return string(a.Host)
 	default:
 		return a.IP.String()
@@ -276,12 +303,12 @@ func (candidateParser) parseAddress(v []byte, target *Address) error {
 	target.IP = parseIP(target.IP, v)
 	if target.IP == nil {
 		target.Host = v
-		target.Type = ct.AddressFQDN
+		target.Type = AddressFQDN
 		return nil
 	}
-	target.Type = ct.AddressIPv6
+	target.Type = AddressIPv6
 	if target.IP.To4() != nil {
-		target.Type = ct.AddressIPv4
+		target.Type = AddressIPv4
 	}
 	return nil
 }

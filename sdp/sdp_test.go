@@ -436,13 +436,13 @@ func TestParseAttribute(t *testing.T) {
 
 func TestAddressType_String(t *testing.T) {
 	for _, tt := range []struct {
-		in  candidate.AddressType
+		in  AddressType
 		out string
 	}{
-		{in: candidate.AddressIPv4, out: "IPv4"},
-		{in: candidate.AddressIPv6, out: "IPv6"},
-		{in: candidate.AddressFQDN, out: "FQDN"},
-		{in: candidate.AddressFQDN + 10, out: "unknown"},
+		{in: AddressIPv4, out: "IPv4"},
+		{in: AddressIPv6, out: "IPv6"},
+		{in: AddressFQDN, out: "FQDN"},
+		{in: AddressFQDN + 10, out: "unknown"},
 	} {
 		t.Run(tt.out, func(t *testing.T) {
 			if tt.in.String() != tt.out {
@@ -472,10 +472,10 @@ func TestConnectionAddress_Equal(t *testing.T) {
 		{
 			name: "HostFQDN",
 			a: Address{
-				Type: candidate.AddressFQDN,
+				Type: AddressFQDN,
 			},
 			b: Address{
-				Type: candidate.AddressFQDN,
+				Type: AddressFQDN,
 				Host: []byte{1},
 			},
 			equal: false,
@@ -490,7 +490,7 @@ func TestConnectionAddress_Equal(t *testing.T) {
 		{
 			name: "Type",
 			b: Address{
-				Type: candidate.AddressIPv6,
+				Type: AddressIPv6,
 			},
 			equal: false,
 		},
@@ -515,7 +515,7 @@ func TestConnectionAddress_String(t *testing.T) {
 		},
 		{
 			in: Address{
-				Type: candidate.AddressFQDN,
+				Type: AddressFQDN,
 				Host: []byte("gortc.io"),
 			},
 			out: "gortc.io",
