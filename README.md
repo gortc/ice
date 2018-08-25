@@ -18,7 +18,7 @@ compatibility.
     - [ ] Basic
     - [ ] Full
     - [ ] [Trickle](https://tools.ietf.org/html/draft-ietf-ice-trickle)
-- [ ] [ice-sip-sdp-21](https://tools.ietf.org/html/draft-ietf-mmusic-ice-sip-sdp-21) — SDP Offer/Answer for ICE
+- [ ] [ice-sip-sdp-21](https://tools.ietf.org/html/draft-ietf-mmusic-ice-sip-sdp-21) — SDP Offer/Answer for ICE ([sdp](https://godoc.org/github.com/gortc/ice/sdp) subpackage)
     - [x] candidate
     - [ ] remote candidate
     - [ ] ice-lite
