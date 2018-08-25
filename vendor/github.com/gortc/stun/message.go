@@ -266,9 +266,12 @@ func (m *Message) WriteTransactionID() {
 
 // WriteAttributes encodes all m.Attributes to m.
 func (m *Message) WriteAttributes() {
-	for _, a := range m.Attributes {
+	attributes := m.Attributes
+	m.Attributes = attributes[:0]
+	for _, a := range attributes {
 		m.Add(a.Type, a.Value)
 	}
+	m.Attributes = attributes
 }
 
 // WriteType writes m.Type to m.Raw.
@@ -282,10 +285,11 @@ func (m *Message) SetType(t MessageType) {
 	m.WriteType()
 }
 
-// Encode resets m.Raw and calls WriteHeader and WriteAttributes.
+// Encode re-encodes message into m.Raw.
 func (m *Message) Encode() {
 	m.Raw = m.Raw[:0]
 	m.WriteHeader()
+	m.Length = 0
 	m.WriteAttributes()
 }
 
@@ -455,6 +459,13 @@ const (
 	MethodChannelBind      Method = 0x009
 )
 
+// Methods from RFC 6062.
+const (
+	MethodConnect           Method = 0x000a
+	MethodConnectionBind    Method = 0x000b
+	MethodConnectionAttempt Method = 0x000c
+)
+
 var methodName = map[Method]string{
 	MethodBinding:          "binding",
 	MethodAllocate:         "allocate",
@@ -463,6 +474,11 @@ var methodName = map[Method]string{
 	MethodData:             "data",
 	MethodCreatePermission: "create permission",
 	MethodChannelBind:      "channel bind",
+
+	// RFC 6062.
+	MethodConnect:           "connect",
+	MethodConnectionBind:    "connection bind",
+	MethodConnectionAttempt: "connection attempt",
 }
 
 func (m Method) String() string {
