@@ -8,8 +8,9 @@ import (
 	"strconv"
 	"unsafe"
 
-	ct "github.com/gortc/ice/candidate"
 	"github.com/pkg/errors"
+
+	ct "github.com/gortc/ice/candidate"
 )
 
 // Address represents address that can be ipv4/6 or FQDN.
