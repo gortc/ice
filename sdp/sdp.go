@@ -1,13 +1,16 @@
+// Package sdp implements SDP parsing for ICE.
 package sdp
 
 import (
 	"bytes"
 	"fmt"
-	"github.com/gortc/ice/candidate"
-	"github.com/pkg/errors"
-	"github.com/valyala/fasthttp"
 	"net"
 	"unsafe"
+
+	"github.com/pkg/errors"
+	"github.com/valyala/fasthttp"
+
+	"github.com/gortc/ice/candidate"
 )
 
 // ConnectionAddress represents address that can be ipv4/6 or FQDN.
@@ -500,4 +503,3 @@ func ParseAttribute(v []byte, c *Candidate) error {
 	err := p.parse()
 	return err
 }
-
