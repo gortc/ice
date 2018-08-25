@@ -12,15 +12,15 @@ import (
 	"github.com/pkg/errors"
 )
 
-// ConnectionAddress represents address that can be ipv4/6 or FQDN.
-type ConnectionAddress struct {
+// Address represents address that can be ipv4/6 or FQDN.
+type Address struct {
 	Host []byte
 	IP   net.IP
 	Type c.AddressType
 }
 
 // reset sets all fields to zero values.
-func (a *ConnectionAddress) reset() {
+func (a *Address) reset() {
 	a.Host = a.Host[:0]
 	for i := range a.IP {
 		a.IP[i] = 0
@@ -29,7 +29,7 @@ func (a *ConnectionAddress) reset() {
 }
 
 // Equal returns true if b equals to a.
-func (a ConnectionAddress) Equal(b ConnectionAddress) bool {
+func (a Address) Equal(b Address) bool {
 	if a.Type != b.Type {
 		return false
 	}
@@ -41,7 +41,7 @@ func (a ConnectionAddress) Equal(b ConnectionAddress) bool {
 	}
 }
 
-func (a ConnectionAddress) str() string {
+func (a Address) str() string {
 	switch a.Type {
 	case c.AddressFQDN:
 		return string(a.Host)
@@ -50,7 +50,7 @@ func (a ConnectionAddress) str() string {
 	}
 }
 
-func (a ConnectionAddress) String() string {
+func (a Address) String() string {
 	return a.str()
 }
 
@@ -69,7 +69,7 @@ const (
 // an end-to-end connectivity check using Session Traversal Utilities
 // for NAT (STUN)).
 type Candidate struct {
-	ConnectionAddress ConnectionAddress
+	ConnectionAddress Address
 	Port              int
 	Transport         c.TransportType
 	TransportValue    []byte
@@ -77,7 +77,7 @@ type Candidate struct {
 	ComponentID       int
 	Priority          int
 	Type              c.Type
-	RelatedAddress    ConnectionAddress
+	RelatedAddress    Address
 	RelatedPort       int
 
 	// Extended attributes
@@ -271,7 +271,7 @@ func parseIP(dst net.IP, v []byte) net.IP {
 	return append(dst, ip...)
 }
 
-func (candidateParser) parseAddress(v []byte, target *ConnectionAddress) error {
+func (candidateParser) parseAddress(v []byte, target *Address) error {
 	target.IP = parseIP(target.IP, v)
 	if target.IP == nil {
 		target.Host = v

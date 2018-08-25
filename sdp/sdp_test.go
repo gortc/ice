@@ -143,7 +143,7 @@ func TestCandidate_Reset(t *testing.T) {
 		Foundation:  3862931549,
 		ComponentID: 1,
 		Priority:    2113937151,
-		ConnectionAddress: ConnectionAddress{
+		ConnectionAddress: Address{
 			IP: net.ParseIP("192.168.220.128"),
 		},
 		Port:        56032,
@@ -160,7 +160,7 @@ func TestCandidate_Reset(t *testing.T) {
 		Foundation:  3862931549,
 		ComponentID: 1,
 		Priority:    2113937151,
-		ConnectionAddress: ConnectionAddress{
+		ConnectionAddress: Address{
 			IP: net.ParseIP("192.168.220.128"),
 		},
 		Port:        56032,
@@ -315,7 +315,7 @@ func TestParse(t *testing.T) {
 			Foundation:  3862931549,
 			ComponentID: 1,
 			Priority:    2113937151,
-			ConnectionAddress: ConnectionAddress{
+			ConnectionAddress: Address{
 				IP: net.ParseIP("192.168.220.128"),
 			},
 			Port:        56032,
@@ -397,7 +397,7 @@ func TestParseAttribute(t *testing.T) {
 			Foundation:  3862931549,
 			ComponentID: 1,
 			Priority:    2113937151,
-			ConnectionAddress: ConnectionAddress{
+			ConnectionAddress: Address{
 				IP: net.ParseIP("192.168.220.128"),
 			},
 			Port:        56032,
@@ -455,7 +455,7 @@ func TestAddressType_String(t *testing.T) {
 func TestConnectionAddress_Equal(t *testing.T) {
 	for _, tt := range []struct {
 		name  string
-		a, b  ConnectionAddress
+		a, b  Address
 		equal bool
 	}{
 		{
@@ -464,17 +464,17 @@ func TestConnectionAddress_Equal(t *testing.T) {
 		},
 		{
 			name: "HostNonFQDN",
-			b: ConnectionAddress{
+			b: Address{
 				Host: []byte{1},
 			},
 			equal: true,
 		},
 		{
 			name: "HostFQDN",
-			a: ConnectionAddress{
+			a: Address{
 				Type: candidate.AddressFQDN,
 			},
-			b: ConnectionAddress{
+			b: Address{
 				Type: candidate.AddressFQDN,
 				Host: []byte{1},
 			},
@@ -482,14 +482,14 @@ func TestConnectionAddress_Equal(t *testing.T) {
 		},
 		{
 			name: "IP",
-			b: ConnectionAddress{
+			b: Address{
 				IP: net.IPv4(1, 0, 0, 1),
 			},
 			equal: false,
 		},
 		{
 			name: "Type",
-			b: ConnectionAddress{
+			b: Address{
 				Type: candidate.AddressIPv6,
 			},
 			equal: false,
@@ -506,22 +506,22 @@ func TestConnectionAddress_Equal(t *testing.T) {
 
 func TestConnectionAddress_String(t *testing.T) {
 	for _, tt := range []struct {
-		in  ConnectionAddress
+		in  Address
 		out string
 	}{
 		{
-			in:  ConnectionAddress{},
+			in:  Address{},
 			out: "<nil>",
 		},
 		{
-			in: ConnectionAddress{
+			in: Address{
 				Type: candidate.AddressFQDN,
 				Host: []byte("gortc.io"),
 			},
 			out: "gortc.io",
 		},
 		{
-			in: ConnectionAddress{
+			in: Address{
 				IP: net.IPv4(127, 0, 0, 1),
 			},
 			out: "127.0.0.1",
