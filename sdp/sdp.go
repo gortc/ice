@@ -1,4 +1,8 @@
-// Package sdp implements SDP parsing for ICE.
+// Package sdp implements  Session Description Protocol (SDP) Offer/Answer
+// procedures for Interactive Connectivity Establishment (ICE).
+//
+// Currently this implementation is based on the following Internet Draft:
+// https://tools.ietf.org/html/draft-ietf-mmusic-ice-sip-sdp-21
 package sdp
 
 import (
