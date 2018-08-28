@@ -6,7 +6,7 @@
 [![stability-wip](https://img.shields.io/badge/stability-wip-lightgrey.svg)](https://github.com/mkenney/software-guides/blob/master/STABILITY-BADGES.md#work-in-progress)
 [![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fgortc%2Fice.svg?type=shield)](https://app.fossa.io/projects/git%2Bgithub.com%2Fgortc%2Fice?ref=badge_shield)
 # ICE
-Package ice implements Interactive Connectivity Establishment (ICE) [[RFC 8445](https://tools.ietf.org/html/rfc8445)]:
+Package ice implements Interactive Connectivity Establishment (ICE) [[RFC8445](https://tools.ietf.org/html/rfc8445)]:
 A Protocol for Network Address Translator (NAT) Traversal.
 Complies to [gortc principles](https://gortc.io/#principles) as core package.
 
