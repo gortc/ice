@@ -1,11 +1,13 @@
 package main
 
 import (
+	"encoding/hex"
 	"fmt"
 	"log"
 	"net"
 
 	"github.com/gortc/ice"
+	"github.com/gortc/ice/candidate"
 )
 
 func main() {
@@ -29,7 +31,19 @@ func main() {
 			fmt.Println("   ", "failed:", err)
 			continue
 		}
-		fmt.Println("   ", "bind ok", c.LocalAddr())
+		listenAddr := c.LocalAddr().(*net.UDPAddr)
+		addr := ice.Addr{
+			IP:    listenAddr.IP,
+			Port:  listenAddr.Port,
+			Proto: candidate.UDP,
+		}
+		ct := &ice.Candidate{
+			Addr: addr,
+			Base: addr,
+			Type: candidate.Host,
+		}
+		ct.Foundation = ice.Foundation(ct, ice.Addr{})
+		fmt.Println("   ", "bind ok", c.LocalAddr(), "0x"+hex.EncodeToString(ct.Foundation))
 		c.Close()
 	}
 }
