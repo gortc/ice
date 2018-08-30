@@ -4,6 +4,15 @@ import (
 	"testing"
 )
 
+func TestMustParseNet(t *testing.T) {
+	defer func() {
+		if recover() == nil {
+			t.Error("should panic")
+		}
+	}()
+	mustParseNet("___")
+}
+
 func TestHostCandidateGatherer_Candidates(t *testing.T) {
 	g := NewHostCandidateGatherer(false)
 	candidates, err := g.Candidates()
