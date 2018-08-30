@@ -28,6 +28,7 @@ lint:
 		--disable="gochecknoglobals" \
 		--disable="gochecknoinits" \
 		--disable="maligned" \
+		--disable="unparam" \
 		--deadline=300s \
 		-j $(PROCS)
 	@echo "ok"
