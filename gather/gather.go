@@ -1,9 +1,12 @@
 package gather
 
 import (
+	"bytes"
 	"fmt"
 	"net"
 	"sort"
+
+	"github.com/gortc/ice/internal"
 )
 
 const precedencesCount = 11
@@ -23,7 +26,8 @@ type Gatherer interface {
 }
 
 func init() {
-	// Initializing precedences for IP.
+	// Initializing policy table.
+	// See RFC 6724 Section 2.1.
 	/*
 	   ::1/128               50     0
 	   ::/0                  40     1
@@ -52,12 +56,8 @@ func init() {
 		{"fec0::/10", 1, 11},
 		{"3ffe::/16", 1, 12},
 	} {
-		_, ipNet, err := net.ParseCIDR(p.cidr)
-		if err != nil {
-			panic(err)
-		}
 		precedences[i] = precedenceConfig{
-			ipNet: ipNet,
+			ipNet: internal.MustParseNet(p.cidr),
 			value: p.value,
 		}
 	}
@@ -74,7 +74,12 @@ type Addr struct {
 type Addrs []Addr
 
 func (s Addrs) Less(i, j int) bool {
-	return s[i].Precedence > s[j].Precedence
+	si, sj := s[i], s[j]
+	if si.Precedence == sj.Precedence {
+		// Comparing IP's to make stable sort.
+		return bytes.Compare(si.IP, sj.IP) < 0
+	}
+	return si.Precedence > sj.Precedence
 }
 
 func (s Addrs) Swap(i, j int) {
