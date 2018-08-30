@@ -3,48 +3,25 @@ package ice
 import (
 	"net"
 
-	"github.com/gortc/ice/candidate"
-	"github.com/gortc/ice/gather"
+	"github.com/gortc/ice/internal"
 )
 
-// NewHostCandidateGatherer initializes new host candidate gatherer
-// that uses host interfaces to gather candidates. Port open procedure
-// should be done by user.
-func NewHostCandidateGatherer(onlyIPv6 bool) *HostCandidateGatherer {
-	return &HostCandidateGatherer{
-		host:     gather.DefaultGatherer,
-		ipv6Only: onlyIPv6,
+// See Deprecating Site Local Addresses [RFC3879]
+var siteLocalIPv6 = internal.MustParseNet("FEC0::/10")
+
+// IsHostIPValid reports whether ip is valid as host address ip.
+func IsHostIPValid(ip net.IP, ipv6Only bool) bool {
+	var (
+		v4 = ip.To4() != nil
+		v6 = !v4
+	)
+	if v6 && ip.To16() == nil {
+		return false
 	}
-}
-
-// HostCandidateGatherer uses host interfaces to gather candidates.
-// Performs only address recognition, socket opening must be done by
-// user.
-type HostCandidateGatherer struct {
-	host     gather.Gatherer
-	ipv6Only bool
-}
-
-func mustParseNet(n string) *net.IPNet {
-	_, parsedNet, err := net.ParseCIDR(n)
-	if err != nil {
-		panic(err)
-	}
-	return parsedNet
-}
-
-// RFC 3879, Deprecating Site Local Addresses
-var siteLocalIPv6 = mustParseNet("FEC0::/10")
-
-func isIPv4MappedIPv6(ip net.IP) bool {
-	// TODO: detect IPv4-mapped IPv6 addresses
-	return false
-}
-
-func validGatherAddr(a gather.Addr, ipv6Only bool) bool {
-	ip := a.IP
-	v6 := ip.To4() == nil
-	if !v6 && ipv6Only {
+	if v4 && ipv6Only {
+		// IPv4-mapped IPv6 addresses SHOULD NOT be included in the address
+		// candidates unless the application using ICE does not support IPv4
+		// (i.e., it is an IPv6-only application [RFC4038]).
 		return false
 	}
 	if ip.IsLoopback() {
@@ -58,12 +35,6 @@ func validGatherAddr(a gather.Addr, ipv6Only bool) bool {
 		// address candidates.
 		return false
 	}
-	if isIPv4MappedIPv6(ip) && !ipv6Only {
-		// IPv4-mapped IPv6 addresses SHOULD NOT be included in the address
-		// candidates unless the application using ICE does not support IPv4
-		// (i.e., it is an IPv6-only application [RFC4038]).
-		return false
-	}
 	if ip.IsLinkLocalUnicast() && v6 {
 		// When host candidates corresponding to an IPv6 address generated
 		// using a mechanism that prevents location tracking are gathered, then
@@ -72,29 +43,4 @@ func validGatherAddr(a gather.Addr, ipv6Only bool) bool {
 		return false
 	}
 	return true
-}
-
-// Candidates returns all host candidates. All returned candidates represents
-// each available transport IP, so Port is zero and Transport defaults to UDP.
-func (g HostCandidateGatherer) Candidates() ([]Candidate, error) {
-	ifaces, err := g.host.Gather()
-	if err != nil {
-		return nil, err
-	}
-	var candidates []Candidate
-	for _, iface := range ifaces {
-		if !validGatherAddr(iface, g.ipv6Only) {
-			continue
-		}
-		addr := Addr{
-			IP: iface.IP,
-		}
-		c := Candidate{
-			Addr: addr,
-			Base: addr,
-			Type: candidate.Host,
-		}
-		candidates = append(candidates, c)
-	}
-	return candidates, nil
 }

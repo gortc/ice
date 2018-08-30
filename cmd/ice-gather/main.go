@@ -14,6 +14,9 @@ func main() {
 		log.Fatal("failed to gather: ", err)
 	}
 	for _, a := range addrs {
+		if !ice.IsHostIPValid(a.IP, false) {
+			continue
+		}
 		fmt.Printf("%s\n", a)
 		laddr, err := net.ResolveUDPAddr("udp",
 			a.ZeroPortAddr(),
