@@ -211,8 +211,8 @@ func TestCandidate_Equal(t *testing.T) {
 		},
 		{
 			name:  "Transport",
-			a:     Candidate{Transport: candidate.TransportUDP},
-			b:     Candidate{Transport: candidate.TransportUnknown},
+			a:     Candidate{Transport: candidate.UDP},
+			b:     Candidate{Transport: candidate.ProtocolUnknown},
 			equal: false,
 		},
 		{

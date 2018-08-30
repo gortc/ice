@@ -101,7 +101,7 @@ const (
 type Candidate struct {
 	ConnectionAddress Address
 	Port              int
-	Transport         ct.TransportType
+	Transport         ct.Protocol
 	TransportValue    []byte
 	Foundation        int
 	ComponentID       int
@@ -125,7 +125,7 @@ func (c *Candidate) Reset() {
 	c.RelatedPort = 0
 	c.NetworkCost = 0
 	c.Generation = 0
-	c.Transport = ct.TransportUnknown
+	c.Transport = ct.ProtocolUnknown
 	c.TransportValue = c.TransportValue[:0]
 	c.Attributes = c.Attributes[:0]
 }
@@ -325,9 +325,9 @@ func (p *candidateParser) parseRelatedAddress(v []byte) error {
 
 func (p *candidateParser) parseTransport(v []byte) error {
 	if bytes.Equal(v, []byte("udp")) || bytes.Equal(v, []byte("UDP")) {
-		p.c.Transport = ct.TransportUDP
+		p.c.Transport = ct.UDP
 	} else {
-		p.c.Transport = ct.TransportUnknown
+		p.c.Transport = ct.ProtocolUnknown
 		p.c.TransportValue = v
 	}
 	return nil

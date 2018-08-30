@@ -46,18 +46,18 @@ func (c Type) String() string {
 	return strOrUnknown(candidateTypeToStr[c])
 }
 
-// TransportType is transport type for candidate.
-type TransportType byte
+// Protocol is protocol for address.
+type Protocol byte
 
-// Supported transport types.
+// Supported protocols.
 const (
-	TransportUDP TransportType = iota
-	TransportUnknown
+	UDP Protocol = iota
+	ProtocolUnknown
 )
 
-func (t TransportType) String() string {
+func (t Protocol) String() string {
 	switch t {
-	case TransportUDP:
+	case UDP:
 		return "UDP"
 	default:
 		return "Unknown"
