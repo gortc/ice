@@ -541,7 +541,7 @@ func TestCandidateType_String(t *testing.T) {
 		out string
 	}{
 		{in: candidate.PeerReflexive, out: "peer-reflexive"},
-		{in: candidate.Relay + 10, out: "unknown"},
+		{in: candidate.Relayed + 10, out: "unknown"},
 	} {
 		t.Run(tt.out, func(t *testing.T) {
 			if tt.in.String() != tt.out {

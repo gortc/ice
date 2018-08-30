@@ -499,7 +499,7 @@ func (p *candidateParser) parseType(v []byte) error {
 	case sdpCandidatePeerReflexive:
 		p.c.Type = ct.PeerReflexive
 	case sdpCandidateRelay:
-		p.c.Type = ct.Relay
+		p.c.Type = ct.Relayed
 	case sdpCandidateServerReflexive:
 		p.c.Type = ct.ServerReflexive
 	default:
