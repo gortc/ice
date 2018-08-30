@@ -3,6 +3,7 @@ package ice
 import (
 	"bytes"
 	"crypto/sha256"
+	"fmt"
 	"net"
 
 	ct "github.com/gortc/ice/candidate"
@@ -14,6 +15,21 @@ type Addr struct {
 	IP    net.IP
 	Port  int
 	Proto ct.Protocol
+}
+
+// Equal returns true of b equals to a.
+func (a Addr) Equal(b Addr) bool {
+	if a.Proto != b.Proto {
+		return false
+	}
+	if a.Port != b.Port {
+		return false
+	}
+	return a.IP.Equal(b.IP)
+}
+
+func (a Addr) String() string {
+	return fmt.Sprintf("%s:%d/%s", a.IP, a.Port, a.Proto)
 }
 
 // The Candidate is a transport address that is a potential point of contact
