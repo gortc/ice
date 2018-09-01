@@ -136,3 +136,40 @@ func TestPriority(t *testing.T) {
 		})
 	}
 }
+
+func TestAddr_Equal(t *testing.T) {
+	for _, tc := range []struct {
+		Name  string
+		A, B  Addr
+		Equal bool
+	}{
+		{
+			Name:  "zero",
+			Equal: true,
+		},
+		{
+			Name: "proto",
+			A: Addr{
+				Proto: 200,
+			},
+		},
+		{
+			Name: "port",
+			A: Addr{
+				Port: 1,
+			},
+		},
+		{
+			Name: "ip",
+			A: Addr{
+				IP: net.IPv4(1, 1, 1, 1),
+			},
+		},
+	} {
+		if v := tc.A.Equal(tc.B); v != tc.Equal {
+			t.Errorf("equal(%s, %s): %v (got) != %v (expected)",
+				tc.A, tc.B, v, tc.Equal,
+			)
+		}
+	}
+}
