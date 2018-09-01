@@ -137,6 +137,30 @@ func TestPriority(t *testing.T) {
 	}
 }
 
+func TestAddr_String(t *testing.T) {
+	for _, tc := range []struct {
+		Addr   Addr
+		String string
+	}{
+		{
+			String: "<nil>:0/UDP)",
+		},
+		{
+			String: "1.1.1.1:10/UDP",
+			Addr: Addr{
+				IP:   net.IPv4(1, 1, 1, 1),
+				Port: 10,
+			},
+		},
+	} {
+		if v := tc.Addr.String(); v != tc.String {
+			t.Errorf("string(%+v): %s (got) != %s (expected)",
+				tc.Addr, v, tc.String,
+			)
+		}
+	}
+}
+
 func TestAddr_Equal(t *testing.T) {
 	for _, tc := range []struct {
 		Name  string
