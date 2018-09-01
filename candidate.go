@@ -74,3 +74,23 @@ func Foundation(c *Candidate, serverAddr Addr) []byte {
 	h.Write(bytes.Join(values, []byte{':'})) // #nosec
 	return h.Sum(nil)[:foundationLength]
 }
+
+// The RECOMMENDED values for type preferences are 126 for host
+// candidates, 110 for peer-reflexive candidates, 100 for server-
+// reflexive candidates, and 0 for relayed candidates.
+//
+// From RFC 8445 Section 5.1.2.2.
+var typePreferences = map[ct.Type]int{
+	ct.Host:            126,
+	ct.PeerReflexive:   110,
+	ct.ServerReflexive: 100,
+	ct.Relayed:         0,
+}
+
+// Priority calculates the priority value by RFC 8445 Section 5.1.2.1 formulae.
+func Priority(t ct.Type, localPref, componentID int) int {
+	// priority = (2^24)*(type preference) +
+	//	(2^8)*(local preference) +
+	//	(2^0)*(256 - component ID)
+	return (1<<24)*typePreferences[t] + (1<<8)*localPref + (1<<0)*(256-componentID)
+}

@@ -92,3 +92,33 @@ func TestFoundation(t *testing.T) {
 		})
 	}
 }
+
+func TestPriority(t *testing.T) {
+	for _, tc := range []struct {
+		Name  string
+		Type  candidate.Type
+		Local int
+		ID    int
+		Value int
+	}{
+		{
+			Name:  "zeroes",
+			Value: 2113929472,
+		},
+		{
+			Name:  "full",
+			Type:  candidate.PeerReflexive,
+			Local: 50,
+			ID:    2,
+			Value: 1845506814,
+		},
+	} {
+		t.Run(tc.Name, func(t *testing.T) {
+			if v := Priority(tc.Type, tc.Local, tc.ID); v != tc.Value {
+				t.Errorf("p(%s, %d, %d) %d (got) != %d (expected)",
+					tc.Type, tc.Local, tc.ID, v, tc.Value,
+				)
+			}
+		})
+	}
+}
