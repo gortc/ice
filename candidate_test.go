@@ -112,6 +112,20 @@ func TestPriority(t *testing.T) {
 			ID:    2,
 			Value: 1845506814,
 		},
+		{
+			Name:  "relayed",
+			Type:  candidate.Relayed,
+			Local: 10,
+			ID:    5,
+			Value: 2811,
+		},
+		{
+			Name:  "server reflexive",
+			Type:  candidate.ServerReflexive,
+			Local: 3,
+			ID:    1,
+			Value: 1677722623,
+		},
 	} {
 		t.Run(tc.Name, func(t *testing.T) {
 			if v := Priority(tc.Type, tc.Local, tc.ID); v != tc.Value {
