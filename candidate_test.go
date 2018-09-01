@@ -143,7 +143,7 @@ func TestAddr_String(t *testing.T) {
 		String string
 	}{
 		{
-			String: "<nil>:0/UDP)",
+			String: "<nil>:0/UDP",
 		},
 		{
 			String: "1.1.1.1:10/UDP",
