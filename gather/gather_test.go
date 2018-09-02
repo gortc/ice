@@ -37,3 +37,10 @@ func TestAddr_ZeroPortAddr(t *testing.T) {
 		})
 	}
 }
+
+func TestDefaultGatherer_Gather(t *testing.T) {
+	_, err := DefaultGatherer.Gather()
+	if err != nil {
+		t.Error(err)
+	}
+}

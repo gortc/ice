@@ -110,13 +110,41 @@ func (a Addr) ZeroPortAddr() string {
 
 type defaultGatherer struct{}
 
-func (defaultGatherer) precedence(ip net.IP) int {
+func precedence(ip net.IP) int {
 	for _, p := range precedences {
 		if p.ipNet.Contains(ip) {
 			return p.value
 		}
 	}
 	return 0
+}
+
+type netInterface interface {
+	Addrs() ([]net.Addr, error)
+}
+
+func ifaceToAddr(i netInterface, name string) ([]Addr, error) {
+	var addrs []Addr
+	netAddrs, err := i.Addrs()
+	if err != nil {
+		return addrs, err
+	}
+	for _, a := range netAddrs {
+		ip, _, err := net.ParseCIDR(a.String())
+		if err != nil {
+			return addrs, err
+		}
+		addr := Addr{
+			IP:         ip,
+			Precedence: precedence(ip),
+		}
+		if ip.IsLinkLocalUnicast() {
+			// Zone must be set for link-local addresses.
+			addr.Zone = name
+		}
+		addrs = append(addrs, addr)
+	}
+	return addrs, nil
 }
 
 func (g defaultGatherer) Gather() ([]Addr, error) {
@@ -126,25 +154,11 @@ func (g defaultGatherer) Gather() ([]Addr, error) {
 	}
 	addrs := make([]Addr, 0, 10)
 	for _, iface := range interfaces {
-		iAddrs, err := iface.Addrs()
+		ifaceAddrs, err := ifaceToAddr(&iface, iface.Name)
 		if err != nil {
 			return addrs, err
 		}
-		for _, a := range iAddrs {
-			ip, _, err := net.ParseCIDR(a.String())
-			if err != nil {
-				return addrs, err
-			}
-			addr := Addr{
-				IP:         ip,
-				Precedence: g.precedence(ip),
-			}
-			if ip.IsLinkLocalUnicast() {
-				// Zone must be set for link-local addresses.
-				addr.Zone = iface.Name
-			}
-			addrs = append(addrs, addr)
-		}
+		addrs = append(addrs, ifaceAddrs...)
 	}
 	sort.Sort(Addrs(addrs))
 	return addrs, nil
