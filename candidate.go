@@ -88,6 +88,14 @@ var typePreferences = map[ct.Type]int{
 }
 
 // Priority calculates the priority value by RFC 8445 Section 5.1.2.1 formulae.
+//
+// The localPref value MUST be an integer from 0 (lowest preference) to
+// 65535 (highest preference) inclusive. When there is only a single IP
+// address, this value SHOULD be set to 65535. If there are multiple
+// candidates for a particular component for a particular data stream
+// that have the same type, the local preference MUST be unique for each
+// one.  If an ICE agent is dual stack, the local preference SHOULD be
+// set according to the current best practice described in [RFC8421].
 func Priority(t ct.Type, localPref, componentID int) int {
 	// priority = (2^24)*(type preference) +
 	//	(2^8)*(local preference) +
