@@ -52,7 +52,7 @@ type HostAddr struct {
 	LocalPreference int
 }
 
-func processMultiHomed(all, v4, v6 []gather.Addr) []HostAddr {
+func processDualStack(all, v4, v6 []gather.Addr) []HostAddr {
 	var (
 		v6InARow int
 	)
@@ -128,7 +128,7 @@ func HostAddresses(gathered []gather.Addr) ([]HostAddr, error) {
 		}
 	}
 	if len(v4Addrs) == 0 || len(v6Addrs) == 0 {
-		// Default order.
+		// Single-stack, but multi-homed.
 		hostAddrs := make([]HostAddr, 0, len(validOnly))
 		for i, a := range validOnly {
 			hostAddrs = append(hostAddrs, HostAddr{
@@ -138,5 +138,6 @@ func HostAddresses(gathered []gather.Addr) ([]HostAddr, error) {
 		}
 		return hostAddrs, nil
 	}
-	return processMultiHomed(validOnly, v4Addrs, v6Addrs), nil
+	// Dual-stack calculation as defined in RFC 8421.
+	return processDualStack(validOnly, v4Addrs, v6Addrs), nil
 }
