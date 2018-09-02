@@ -102,7 +102,8 @@ func TestPriority(t *testing.T) {
 		Value int
 	}{
 		{
-			Name:  "zeroes",
+			Name:  "host",
+			Type:  126,
 			Value: 2113929472,
 		},
 		{
@@ -129,7 +130,7 @@ func TestPriority(t *testing.T) {
 	} {
 		t.Run(tc.Name, func(t *testing.T) {
 			if v := Priority(tc.Type, tc.Local, tc.ID); v != tc.Value {
-				t.Errorf("p(%s, %d, %d) %d (got) != %d (expected)",
+				t.Errorf("p(%d, %d, %d) %d (got) != %d (expected)",
 					tc.Type, tc.Local, tc.ID, v, tc.Value,
 				)
 			}
