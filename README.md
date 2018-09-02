@@ -18,6 +18,7 @@ compatibility.
     - [ ] Basic
     - [ ] Full
     - [ ] [Trickle](https://tools.ietf.org/html/draft-ietf-ice-trickle)
+- [x] [RFC 8421](https://tools.ietf.org/html/rfc8421) — Guidelines for Multihomed/Dual-Stack ICE
 - [ ] [ice-sip-sdp-21](https://tools.ietf.org/html/draft-ietf-mmusic-ice-sip-sdp-21) — SDP Offer/Answer for ICE ([sdp](https://godoc.org/github.com/gortc/ice/sdp) subpackage)
     - [x] candidate
     - [ ] remote candidate
