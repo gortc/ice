@@ -87,7 +87,13 @@ var typePreferences = map[ct.Type]int{
 	ct.Relayed:         0,
 }
 
+func TypePreference(t ct.Type) int { return typePreferences[t] }
+
 // Priority calculates the priority value by RFC 8445 Section 5.1.2.1 formulae.
+
+// The typePref value MUST be an integer from 0 (lowest preference) to 126
+// (highest preference) inclusive, MUST be identical for all candidates of
+// the same type, and MUST be different for candidates of different types.
 //
 // The localPref value MUST be an integer from 0 (lowest preference) to
 // 65535 (highest preference) inclusive. When there is only a single IP
@@ -96,9 +102,11 @@ var typePreferences = map[ct.Type]int{
 // that have the same type, the local preference MUST be unique for each
 // one. If an ICE agent is dual stack, the local preference SHOULD be
 // set according to the current best practice described in [RFC8421].
-func Priority(t ct.Type, localPref, componentID int) int {
+//
+// The component ID MUST be an integer between 1 and 256 inclusive.
+func Priority(typePref, localPref, componentID int) int {
 	// priority = (2^24)*(type preference) +
 	//	(2^8)*(local preference) +
 	//	(2^0)*(256 - component ID)
-	return (1<<24)*typePreferences[t] + (1<<8)*localPref + (1<<0)*(256-componentID)
+	return (1<<24)*typePref + (1<<8)*localPref + (1<<0)*(256-componentID)
 }

@@ -96,7 +96,7 @@ func TestFoundation(t *testing.T) {
 func TestPriority(t *testing.T) {
 	for _, tc := range []struct {
 		Name  string
-		Type  candidate.Type
+		Type  int
 		Local int
 		ID    int
 		Value int
@@ -107,21 +107,21 @@ func TestPriority(t *testing.T) {
 		},
 		{
 			Name:  "full",
-			Type:  candidate.PeerReflexive,
+			Type:  TypePreference(candidate.PeerReflexive),
 			Local: 50,
 			ID:    2,
 			Value: 1845506814,
 		},
 		{
 			Name:  "relayed",
-			Type:  candidate.Relayed,
+			Type:  TypePreference(candidate.Relayed),
 			Local: 10,
 			ID:    5,
 			Value: 2811,
 		},
 		{
 			Name:  "server reflexive",
-			Type:  candidate.ServerReflexive,
+			Type:  TypePreference(candidate.ServerReflexive),
 			Local: 3,
 			ID:    1,
 			Value: 1677722623,
