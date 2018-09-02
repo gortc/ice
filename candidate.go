@@ -94,7 +94,7 @@ var typePreferences = map[ct.Type]int{
 // address, this value SHOULD be set to 65535. If there are multiple
 // candidates for a particular component for a particular data stream
 // that have the same type, the local preference MUST be unique for each
-// one.  If an ICE agent is dual stack, the local preference SHOULD be
+// one. If an ICE agent is dual stack, the local preference SHOULD be
 // set according to the current best practice described in [RFC8421].
 func Priority(t ct.Type, localPref, componentID int) int {
 	// priority = (2^24)*(type preference) +
