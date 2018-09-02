@@ -87,10 +87,11 @@ var typePreferences = map[ct.Type]int{
 	ct.Relayed:         0,
 }
 
+// TypePreference returns recommended type preference for candidate type.
 func TypePreference(t ct.Type) int { return typePreferences[t] }
 
 // Priority calculates the priority value by RFC 8445 Section 5.1.2.1 formulae.
-
+//
 // The typePref value MUST be an integer from 0 (lowest preference) to 126
 // (highest preference) inclusive, MUST be identical for all candidates of
 // the same type, and MUST be different for candidates of different types.
