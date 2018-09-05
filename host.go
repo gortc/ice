@@ -56,7 +56,6 @@ func processDualStack(all, v4, v6 []gather.Addr) []HostAddr {
 	var (
 		v6InARow int
 	)
-	// TODO(ar): Simplify.
 	nHi := (len(v6) + len(v4)) / len(v4)
 	hostAddrs := make([]HostAddr, 0, len(all))
 	for i := 0; i < len(all); i++ {
@@ -65,17 +64,18 @@ func processDualStack(all, v4, v6 []gather.Addr) []HostAddr {
 			v6InARow = 0
 			useV6 = false
 		}
+		pref := len(all) - 1
 		if useV6 && len(v6) > 0 {
 			v6InARow++
 			hostAddrs = append(hostAddrs, HostAddr{
 				IP:              v6[0].IP,
-				LocalPreference: len(all) - i,
+				LocalPreference: pref,
 			})
 			v6 = v6[1:]
 		} else if len(v4) > 0 {
 			hostAddrs = append(hostAddrs, HostAddr{
 				IP:              v4[0].IP,
-				LocalPreference: len(all) - i,
+				LocalPreference: pref,
 			})
 			v4 = v4[1:]
 		}
