@@ -138,9 +138,9 @@ func TestGatherHostAddresses(t *testing.T) {
 					IP: net.ParseIP(ip),
 				}
 			}
-			expecteds := make([]HostAddr, len(tc.Output))
+			expected := make([]HostAddr, len(tc.Output))
 			for i, row := range tc.Output {
-				expecteds[i] = HostAddr{
+				expected[i] = HostAddr{
 					IP:              net.ParseIP(row.IP),
 					LocalPreference: row.Preference,
 				}
@@ -149,14 +149,14 @@ func TestGatherHostAddresses(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if len(gotAddr) != len(expecteds) {
+			if len(gotAddr) != len(expected) {
 				t.Fatalf("bad length: %d (got) != %d (expected)",
-					len(gotAddr), len(expecteds),
+					len(gotAddr), len(expected),
 				)
 			}
 			for i := range gotAddr {
 				got := gotAddr[i]
-				exp := expecteds[i]
+				exp := expected[i]
 				if got.LocalPreference != exp.LocalPreference || !got.IP.Equal(exp.IP) {
 					t.Errorf("[%d]: %s, %d (got) != %s, %d (expected)",
 						i, got.IP, got.LocalPreference, exp.IP, exp.LocalPreference,
