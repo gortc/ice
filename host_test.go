@@ -7,6 +7,61 @@ import (
 	"github.com/gortc/ice/gather"
 )
 
+func TestProcessDualStack(t *testing.T) {
+	const maxCount = 100
+	tt := make([]struct {
+		V4, V6 int
+	}, 0, maxCount*maxCount)
+	// Not checking v4=0 and v6=0 because that case is invalid for
+	// the processDualStack function.
+	for v4 := 1; v4 <= maxCount; v4++ {
+		for v6 := 1; v6 <= maxCount; v6++ {
+			tt = append(tt, struct{ V4, V6 int }{V4: v4, V6: v6})
+		}
+	}
+	for _, tc := range tt {
+		var v4, v6, all []gather.Addr
+		for i := 0; i < tc.V4; i++ {
+			a := gather.Addr{
+				IP: make(net.IP, net.IPv4len),
+			}
+			// "marking" IP so we can count unique ip's.
+			bin.PutUint32(a.IP, uint32(i))
+			v4 = append(v4, a)
+			all = append(all, a)
+		}
+		for i := 0; i < tc.V6; i++ {
+			a := gather.Addr{
+				IP: make(net.IP, net.IPv6len),
+			}
+			bin.PutUint32(a.IP, uint32(i))
+			v6 = append(v6, a)
+			all = append(all, a)
+		}
+		// Checking that output length is equal to total length.
+		result := processDualStack(all, v4, v6)
+		if len(result) != len(all) {
+			t.Errorf("v4: %d, v6: %d: expected %d, got %d", tc.V4, tc.V6, len(all), len(result))
+		}
+		// Checking unique IP count.
+		gotV4 := make(map[uint32]bool)
+		gotV6 := make(map[uint32]bool)
+		for _, r := range result {
+			if r.IP.To4() == nil {
+				gotV6[bin.Uint32(r.IP)] = true
+			} else {
+				gotV4[bin.Uint32(r.IP)] = true
+			}
+		}
+		if len(gotV4) != len(v4) {
+			t.Errorf("v4: %d, v6: %d: v4 expected %d, got %d", tc.V4, tc.V6, len(v4), len(gotV4))
+		}
+		if len(gotV6) != len(v6) {
+			t.Errorf("v4: %d, v6: %d: v6 expected %d, got %d", tc.V4, tc.V6, len(v6), len(gotV6))
+		}
+	}
+}
+
 func TestGatherHostAddresses(t *testing.T) {
 	type outputRow struct {
 		IP         string

@@ -52,6 +52,7 @@ type HostAddr struct {
 	LocalPreference int
 }
 
+// v4 and v6 length must be non-zero, and len(v4) + len(v6) must be len(all).
 func processDualStack(all, v4, v6 []gather.Addr) []HostAddr {
 	var (
 		v6InARow int
