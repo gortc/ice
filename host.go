@@ -61,7 +61,7 @@ func processDualStack(all, v4, v6 []gather.Addr) []HostAddr {
 	hostAddrs := make([]HostAddr, 0, len(all))
 	for i := 0; i < len(all); i++ {
 		useV6 := true
-		if v6InARow >= nHi {
+		if v6InARow >= nHi && len(v4) > 0 {
 			v6InARow = 0
 			useV6 = false
 		}
