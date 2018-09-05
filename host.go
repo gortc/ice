@@ -95,6 +95,24 @@ func isV6Only(addrs []gather.Addr) bool {
 	return v6Only
 }
 
+func filterValid(gathered []gather.Addr) []gather.Addr {
+	valid := make([]gather.Addr, 0, len(gathered))
+	v6Only := isV6Only(gathered)
+	for _, addr := range gathered {
+		if !IsHostIPValid(addr.IP, v6Only) {
+			continue
+		}
+		valid = append(valid, addr)
+	}
+	return valid
+}
+
+const (
+	// When there is only a single IP address, this value SHOULD be
+	// set to 65535.
+	singleIPAddrPreference = 65535
+)
+
 // HostAddresses returns valid host addresses from gathered addresses with
 // calculated local preference.
 //
@@ -105,18 +123,19 @@ func HostAddresses(gathered []gather.Addr) ([]HostAddr, error) {
 	if len(gathered) == 0 {
 		return []HostAddr{}, nil
 	}
-	var (
-		v6Only    = isV6Only(gathered)
-		validOnly = make([]gather.Addr, 0, len(gathered))
-	)
-	for _, addr := range gathered {
-		if !IsHostIPValid(addr.IP, v6Only) {
-			continue
-		}
-		validOnly = append(validOnly, addr)
-	}
+	validOnly := filterValid(gathered)
 	if len(validOnly) == 0 {
 		return []HostAddr{}, nil
+	}
+	if len(validOnly) == 1 {
+		// Setting local preference for single IP as defined
+		// in RFC 8445 Section 5.1.2.1.
+		return []HostAddr{
+			{
+				IP:              validOnly[0].IP,
+				LocalPreference: singleIPAddrPreference,
+			},
+		}, nil
 	}
 	var (
 		v6Addrs, v4Addrs []gather.Addr
@@ -129,7 +148,7 @@ func HostAddresses(gathered []gather.Addr) ([]HostAddr, error) {
 		}
 	}
 	if len(v4Addrs) == 0 || len(v6Addrs) == 0 {
-		// Single-stack, possibly multi-homed.
+		// Single-stack and multi-homed.
 		hostAddrs := make([]HostAddr, 0, len(validOnly))
 		for i, a := range validOnly {
 			hostAddrs = append(hostAddrs, HostAddr{

@@ -82,6 +82,15 @@ func TestGatherHostAddresses(t *testing.T) {
 			},
 		},
 		{
+			Name: "Single IPv4",
+			Input: []string{
+				"1.1.1.1",
+			},
+			Output: []outputRow{
+				{"1.1.1.1", 65535},
+			},
+		},
+		{
 			Name: "IPv4",
 			Input: []string{
 				"1.1.1.1",
@@ -90,6 +99,15 @@ func TestGatherHostAddresses(t *testing.T) {
 			Output: []outputRow{
 				{"1.1.1.1", 2},
 				{"1.1.1.2", 1},
+			},
+		},
+		{
+			Name: "Single IPv6",
+			Input: []string{
+				"2a03:e2c0:60f:52:cfe1:fdd:daf7:7fa1",
+			},
+			Output: []outputRow{
+				{"2a03:e2c0:60f:52:cfe1:fdd:daf7:7fa1", 65535},
 			},
 		},
 		{
