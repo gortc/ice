@@ -128,7 +128,7 @@ func HostAddresses(gathered []gather.Addr) ([]HostAddr, error) {
 		}
 	}
 	if len(v4Addrs) == 0 || len(v6Addrs) == 0 {
-		// Single-stack, but multi-homed.
+		// Single-stack, possibly multi-homed.
 		hostAddrs := make([]HostAddr, 0, len(validOnly))
 		for i, a := range validOnly {
 			hostAddrs = append(hostAddrs, HostAddr{
