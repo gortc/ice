@@ -36,12 +36,13 @@ func (a Addr) String() string {
 // for receipt of data. Candidates also have properties — their type
 // (server reflexive, relayed, or host), priority, foundation, and base.
 type Candidate struct {
-	Addr       Addr
-	Type       ct.Type
-	Priority   int
-	Foundation []byte
-	Base       Addr
-	Related    Addr
+	Addr        Addr
+	Type        ct.Type
+	Priority    int
+	Foundation  []byte
+	Base        Addr
+	Related     Addr
+	ComponentID int
 }
 
 const foundationLength = 8
