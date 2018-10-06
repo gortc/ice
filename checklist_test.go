@@ -2,6 +2,19 @@ package ice
 
 import "testing"
 
+func TestChecklist_Order(t *testing.T) {
+	c := Checklist{
+		Pairs: Pairs{
+			{Priority: 1},
+			{Priority: 10},
+		},
+	}
+	c.Order()
+	if c.Pairs[0].Priority == 1 {
+		t.Error("pair with 1 priority should be second")
+	}
+}
+
 func TestChecklist_ComputePriorities(t *testing.T) {
 	c := Checklist{
 		Pairs: Pairs{

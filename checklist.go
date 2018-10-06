@@ -1,5 +1,7 @@
 package ice
 
+import "sort"
+
 // Checklist is set of pairs.
 //
 //
@@ -31,3 +33,7 @@ func (c *Checklist) ComputePriorities(role Role) {
 		c.Pairs[i].Priority = PairPriority(controlling, controlled)
 	}
 }
+
+// Order is ordering pairs by priority descending.
+// First element will have highest priority.
+func (c *Checklist) Order() { sort.Sort(c.Pairs) }

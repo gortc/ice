@@ -52,7 +52,7 @@ func TestPairs(t *testing.T) {
 	}
 	sort.Sort(pairs)
 	expectedOrder := []int64{
-		0, 3, 4, 4, 5, 8, 9, 100,
+		100, 9, 8, 5, 4, 4, 3, 0,
 	}
 	for i, p := range pairs {
 		if p.Priority != expectedOrder[i] {
