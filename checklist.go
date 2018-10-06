@@ -68,3 +68,17 @@ func (c *Checklist) Prune() {
 	}
 	c.Pairs = result
 }
+
+// Limit ensures maximum length of pairs, removing the pairs with least priority
+// if needed.
+func (c *Checklist) Limit(max int) {
+	if len(c.Pairs) <= max {
+		return
+	}
+	c.Pairs = c.Pairs[:max]
+}
+
+// Len returns pairs count.
+func (c *Checklist) Len() int {
+	return len(c.Pairs)
+}

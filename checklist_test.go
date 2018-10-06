@@ -97,3 +97,33 @@ func TestChecklist_Prune(t *testing.T) {
 		t.Error("unexpected result length")
 	}
 }
+
+func TestChecklist_Limit(t *testing.T) {
+	c := Checklist{
+		Pairs: Pairs{
+			{
+				Priority: 100,
+			},
+			{
+				Priority: 99,
+			},
+			{
+				Priority: 98,
+			},
+			{
+				Priority: 97,
+			},
+			{
+				Priority: 96,
+			},
+		},
+	}
+	c.Limit(10)
+	if c.Len() != 5 {
+		t.Error("unexpected length")
+	}
+	c.Limit(3)
+	if c.Len() != 3 {
+		t.Error("unexpected length ")
+	}
+}
