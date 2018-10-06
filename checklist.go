@@ -14,3 +14,20 @@ package ice
 type Checklist struct {
 	Pairs Pairs
 }
+
+// ComputePriorities computes priorities for all pairs based on agent role.
+//
+// The role determines whether local candidate is from controlling or from controlled
+// agent.
+func (c *Checklist) ComputePriorities(role Role) {
+	for i := range c.Pairs {
+		var (
+			controlling = c.Pairs[i].Local.Priority
+			controlled  = c.Pairs[i].Remote.Priority
+		)
+		if role == Controlled {
+			controlling, controlled = controlled, controlling
+		}
+		c.Pairs[i].Priority = PairPriority(controlling, controlled)
+	}
+}
