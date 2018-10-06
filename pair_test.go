@@ -2,6 +2,7 @@ package ice
 
 import (
 	"fmt"
+	"sort"
 	"testing"
 )
 
@@ -35,5 +36,27 @@ func TestPair_Foundation(t *testing.T) {
 	f := p.Foundation()
 	if len(f) != foundationLength*2 {
 		t.Error("bad length")
+	}
+}
+
+func TestPairs(t *testing.T) {
+	pairs := Pairs{
+		{Priority: 4},
+		{Priority: 3},
+		{Priority: 100},
+		{Priority: 0},
+		{Priority: 4},
+		{Priority: 5},
+		{Priority: 9},
+		{Priority: 8},
+	}
+	sort.Sort(pairs)
+	expectedOrder := []int64{
+		0, 3, 4, 4, 5, 8, 9, 100,
+	}
+	for i, p := range pairs {
+		if p.Priority != expectedOrder[i] {
+			t.Errorf("p[%d]: %d (got) != %d (expected)", i, p.Priority, expectedOrder[i])
+		}
 	}
 }
