@@ -45,6 +45,33 @@ type Candidate struct {
 	ComponentID int
 }
 
+// Equal reports whether c equals to b.
+func (c Candidate) Equal(b Candidate) bool {
+	if c.Type != b.Type {
+		return false
+	}
+	if c.Priority != b.Priority {
+		return false
+	}
+	if !c.Addr.Equal(b.Addr) {
+		return false
+	}
+	if !bytes.Equal(c.Foundation, b.Foundation) {
+		return false
+	}
+	if !c.Base.Equal(b.Base) {
+		return false
+	}
+	if !c.Related.Equal(b.Related) {
+		// Should we skip that check?
+		return false
+	}
+	if c.ComponentID != b.ComponentID {
+		return false
+	}
+	return true
+}
+
 const foundationLength = 8
 
 // Foundation computes foundation value for candidate. The serverAddr parameter

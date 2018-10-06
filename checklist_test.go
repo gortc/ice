@@ -65,3 +65,35 @@ func TestChecklist_ComputePriorities(t *testing.T) {
 		}
 	}
 }
+
+func TestChecklist_Prune(t *testing.T) {
+	c := Checklist{
+		Pairs: Pairs{
+			// TODO: Improve this
+			{
+				Local:  Candidate{},
+				Remote: Candidate{},
+			},
+			{
+				Local:  Candidate{},
+				Remote: Candidate{},
+			},
+			{
+				Local:  Candidate{},
+				Remote: Candidate{},
+			},
+			{
+				Local:  Candidate{},
+				Remote: Candidate{},
+			},
+			{
+				Local:  Candidate{},
+				Remote: Candidate{},
+			},
+		},
+	}
+	c.Prune()
+	if len(c.Pairs) != 1 {
+		t.Error("unexpected result length")
+	}
+}

@@ -19,8 +19,8 @@ type Checklist struct {
 
 // ComputePriorities computes priorities for all pairs based on agent role.
 //
-// The role determines whether local candidate is from controlling or from controlled
-// agent.
+// The role determines whether local candidate is from controlling or from
+// controlled agent.
 func (c *Checklist) ComputePriorities(role Role) {
 	for i := range c.Pairs {
 		var (
@@ -37,3 +37,34 @@ func (c *Checklist) ComputePriorities(role Role) {
 // Order is ordering pairs by priority descending.
 // First element will have highest priority.
 func (c *Checklist) Order() { sort.Sort(c.Pairs) }
+
+// Prune removes redundant candidates.
+//
+// Two candidate pairs are redundant if their local candidates have the same
+// base and their remote candidates are identical
+func (c *Checklist) Prune() {
+	// Pruning algorithm is not optimal but should work for small numbers,
+	// where len(c.Pairs) ~ 100.
+	result := make(Pairs, 0, len(c.Pairs))
+	for i := range c.Pairs {
+		base := c.Pairs[i].Local.Base
+		redundant := false
+		for j := range result {
+			// Check if local candidates have the same base.
+			if !result[j].Local.Base.Equal(base) {
+				continue
+			}
+			// Check if remote candidates are identical.
+			if !result[j].Remote.Equal(c.Pairs[i].Remote) {
+				continue
+			}
+			redundant = true
+			break
+		}
+		if redundant {
+			continue
+		}
+		result = append(result, c.Pairs[i])
+	}
+	c.Pairs = result
+}

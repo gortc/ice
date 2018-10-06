@@ -198,3 +198,37 @@ func TestAddr_Equal(t *testing.T) {
 		}
 	}
 }
+
+func TestCandidate_Equal(t *testing.T) {
+	for _, tc := range []struct {
+		Name  string
+		A, B  Candidate
+		Equal bool
+	}{
+		{
+			Name:  "blank",
+			Equal: true,
+		},
+		{
+			Name: "type",
+			B: Candidate{
+				Type: candidate.PeerReflexive,
+			},
+			Equal: false,
+		},
+		{
+			Name: "priority",
+			B: Candidate{
+				Priority: 1000,
+			},
+			Equal: false,
+		},
+		// TODO: Add more cases.
+	} {
+		t.Run(tc.Name, func(t *testing.T) {
+			if v := tc.A.Equal(tc.B); v != tc.Equal {
+				t.Error("not equal")
+			}
+		})
+	}
+}
