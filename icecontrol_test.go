@@ -8,7 +8,7 @@ import (
 
 func TestControlled_GetFrom(t *testing.T) {
 	m := new(stun.Message)
-	var c Controlled
+	var c AttrControlled
 	if err := c.GetFrom(m); err != stun.ErrAttributeNotFound {
 		t.Error("unexpected error")
 	}
@@ -19,7 +19,7 @@ func TestControlled_GetFrom(t *testing.T) {
 	if _, err := m1.Write(m.Raw); err != nil {
 		t.Error(err)
 	}
-	var c1 Controlled
+	var c1 AttrControlled
 	if err := c1.GetFrom(m1); err != nil {
 		t.Error(err)
 	}
@@ -29,7 +29,7 @@ func TestControlled_GetFrom(t *testing.T) {
 	t.Run("IncorrectSize", func(t *testing.T) {
 		m3 := new(stun.Message)
 		m3.Add(stun.AttrICEControlled, make([]byte, 100))
-		var c2 Controlled
+		var c2 AttrControlled
 		if err := c2.GetFrom(m3); !stun.IsAttrSizeInvalid(err) {
 			t.Error("should error")
 		}
@@ -38,7 +38,7 @@ func TestControlled_GetFrom(t *testing.T) {
 
 func TestControlling_GetFrom(t *testing.T) {
 	m := new(stun.Message)
-	var c Controlling
+	var c AttrControlling
 	if err := c.GetFrom(m); err != stun.ErrAttributeNotFound {
 		t.Error("unexpected error")
 	}
@@ -49,7 +49,7 @@ func TestControlling_GetFrom(t *testing.T) {
 	if _, err := m1.Write(m.Raw); err != nil {
 		t.Error(err)
 	}
-	var c1 Controlling
+	var c1 AttrControlling
 	if err := c1.GetFrom(m1); err != nil {
 		t.Error(err)
 	}
@@ -59,7 +59,7 @@ func TestControlling_GetFrom(t *testing.T) {
 	t.Run("IncorrectSize", func(t *testing.T) {
 		m3 := new(stun.Message)
 		m3.Add(stun.AttrICEControlling, make([]byte, 100))
-		var c2 Controlling
+		var c2 AttrControlling
 		if err := c2.GetFrom(m3); !stun.IsAttrSizeInvalid(err) {
 			t.Error("should error")
 		}
