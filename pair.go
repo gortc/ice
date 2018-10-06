@@ -27,3 +27,18 @@ func PairPriority(controlling, controlled int) int64 {
 	}
 	return v
 }
+
+// Pair wraps two candidates, one is local, other is remote.
+type Pair struct {
+	Local    Candidate
+	Remote   Candidate
+	Priority int64
+}
+
+// Foundation is combination of candidates foundations.
+func (p Pair) Foundation() []byte {
+	f := make([]byte, foundationLength*2)
+	copy(f[:foundationLength], p.Local.Foundation)
+	copy(f[foundationLength:], p.Remote.Foundation)
+	return f
+}

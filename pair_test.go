@@ -22,3 +22,18 @@ func TestPairPriority(t *testing.T) {
 		})
 	}
 }
+
+func TestPair_Foundation(t *testing.T) {
+	p := Pair{
+		Local: Candidate{
+			Foundation: make([]byte, foundationLength),
+		},
+		Remote: Candidate{
+			Foundation: make([]byte, foundationLength),
+		},
+	}
+	f := p.Foundation()
+	if len(f) != foundationLength*2 {
+		t.Error("bad length")
+	}
+}
