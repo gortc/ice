@@ -3,9 +3,7 @@
 // A Protocol for Network Address Translator (NAT) Traversal
 package ice
 
-import (
-	"encoding/binary"
-)
+import "encoding/binary"
 
 // bin is shorthand for BigEndian.
 var bin = binary.BigEndian
