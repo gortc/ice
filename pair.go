@@ -50,21 +50,21 @@ var pairStateToStr = map[PairState]string{
 func (s PairState) String() string { return pairStateToStr[s] }
 
 const (
-	// PairFrozen: A check for this pair has not been sent, and it cannot be
-	// sent until the pair is unfrozen and moved into the Waiting state.
+	// PairFrozen state: A check for this pair has not been sent, and it cannot
+	// be sent until the pair is unfrozen and moved into the Waiting state.
 	PairFrozen PairState = iota
-	// PairInProgress: A check has been sent for this pair, but the
+	// PairInProgress state: A check has been sent for this pair, but the
 	// transaction is in progress.
 	PairInProgress
-	// PairSucceeded: A check has been sent for this pair, and it produced a
-	// successful result.
+	// PairSucceeded state: A check has been sent for this pair, and it produced
+	// a successful result.
 	PairSucceeded
-	// PairFailed: A check has been sent for this pair, and it failed (a
+	// PairFailed state: A check has been sent for this pair, and it failed (a
 	// response to the check was never received, or a failure response was
 	// received).
 	PairFailed
-	// PairWaiting: A check has not been sent for this pair, but the pair is
-	// not Frozen.
+	// PairWaiting state: A check has not been sent for this pair, but the pair
+	// is not Frozen.
 	PairWaiting
 )
 
