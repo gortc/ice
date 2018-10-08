@@ -33,7 +33,40 @@ type Pair struct {
 	Local    Candidate
 	Remote   Candidate
 	Priority int64
+	State    PairState
 }
+
+// PairState as defined in RFC 8445 Section 6.1.2.6.
+type PairState byte
+
+var pairStateToStr = map[PairState]string{
+	PairWaiting:    "Waiting",
+	PairInProgress: "In-Progress",
+	PairSucceeded:  "Succeeded",
+	PairFailed:     "Failed",
+	PairFrozen:     "Frozen",
+}
+
+func (s PairState) String() string { return pairStateToStr[s] }
+
+const (
+	// PairWaiting: A check has not been sent for this pair, but the pair is
+	// not Frozen.
+	PairWaiting PairState = iota
+	// PairInProgress: A check has been sent for this pair, but the
+	// transaction is in progress.
+	PairInProgress
+	// PairSucceeded: A check has been sent for this pair, and it produced a
+	// successful result.
+	PairSucceeded
+	// PairFailed: A check has been sent for this pair, and it failed (a
+	// response to the check was never received, or a failure response was
+	// received).
+	PairFailed
+	// PairFrozen: A check for this pair has not been sent, and it cannot be
+	// sent until the pair is unfrozen and moved into the Waiting state.
+	PairFrozen
+)
 
 // Foundation is combination of candidates foundations.
 func (p Pair) Foundation() []byte {
