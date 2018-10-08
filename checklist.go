@@ -15,7 +15,36 @@ import "sort"
 // 	the agent will re-perform these steps for the updated checklist.
 type Checklist struct {
 	Pairs Pairs
+	State ChecklistState
 }
+
+// ChecklistState represents the Checklist State.
+//
+// See RFC 8445 Section 6.1.2.1
+type ChecklistState byte
+
+var checklistStateToStr = map[ChecklistState]string{
+	ChecklistRunning:   "Running",
+	ChecklistCompleted: "Completed",
+	ChecklistFailed:    "Failed",
+}
+
+func (s ChecklistState) String() string { return checklistStateToStr[s] }
+
+const (
+	// ChecklistRunning is neither Completed nor Failed yet. Checklists are
+	// initially set to the Running state.
+	ChecklistRunning ChecklistState = iota
+	// ChecklistCompleted contains a nominated pair for each component of the
+	// data stream.
+	ChecklistCompleted
+	// ChecklistFailed does not have a valid pair for each component of the data
+	// stream, and all of the candidate pairs in the checklist are in either the
+	// Failed or the Succeeded state. In other words, at least one component of
+	// the checklist has candidate pairs that are all in the Failed state, which
+	// means the component has failed, which means the checklist has failed.
+	ChecklistFailed
+)
 
 // ComputePriorities computes priorities for all pairs based on agent role.
 //
