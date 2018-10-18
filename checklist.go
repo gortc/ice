@@ -75,9 +75,9 @@ func (c *Checklist) Prune() {
 	// Pruning algorithm is not optimal but should work for small numbers,
 	// where len(c.Pairs) ~ 100.
 	result := make(Pairs, 0, len(c.Pairs))
+Loop:
 	for i := range c.Pairs {
 		base := c.Pairs[i].Local.Base
-		redundant := false
 		for j := range result {
 			// Check if local candidates have the same base.
 			if !result[j].Local.Base.Equal(base) {
@@ -87,11 +87,8 @@ func (c *Checklist) Prune() {
 			if !result[j].Remote.Equal(c.Pairs[i].Remote) {
 				continue
 			}
-			redundant = true
-			break
-		}
-		if redundant {
-			continue
+			// Pair is redundant, skipping.
+			continue Loop
 		}
 		result = append(result, c.Pairs[i])
 	}
