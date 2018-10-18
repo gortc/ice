@@ -2,6 +2,7 @@ package ice
 
 import (
 	"fmt"
+	"net"
 	"sort"
 	"testing"
 )
@@ -58,5 +59,75 @@ func TestPairs(t *testing.T) {
 		if p.Priority != expectedOrder[i] {
 			t.Errorf("p[%d]: %d (got) != %d (expected)", i, p.Priority, expectedOrder[i])
 		}
+	}
+}
+
+func TestNewPairs(t *testing.T) {
+	for _, tc := range []struct {
+		Name   string
+		Local  Candidates
+		Remote Candidates
+		Result Pairs
+	}{
+		{
+			Name: "Blank",
+		},
+		{
+			Name: "No pairs",
+			Local: Candidates{
+				{
+					Addr: Addr{
+						IP: net.ParseIP("1.1.1.1"),
+					},
+				},
+			},
+			Remote: Candidates{
+				{
+					Addr: Addr{
+						IP: net.ParseIP("2001:11:12:13:14:15:16:17"),
+					},
+				},
+			},
+		},
+		{
+			Name: "Simple",
+			Local: Candidates{
+				{
+					Addr: Addr{
+						IP: net.ParseIP("1.1.1.1"),
+					},
+				},
+			},
+			Remote: Candidates{
+				{
+					Addr: Addr{
+						IP: net.ParseIP("1.1.1.1"),
+					},
+				},
+			},
+			Result: Pairs{
+				{
+					Local: Candidate{
+						Addr: Addr{
+							IP: net.ParseIP("1.1.1.1"),
+						},
+					},
+					Remote: Candidate{
+						Addr: Addr{
+							IP: net.ParseIP("1.1.1.1"),
+						},
+					},
+				},
+			},
+		},
+	} {
+		t.Run(tc.Name, func(t *testing.T) {
+			got := NewPairs(tc.Local, tc.Remote)
+			if len(got) != len(tc.Result) {
+				t.Errorf("bad length: %d (got) != %d (expected)",
+					len(got), len(tc.Result),
+				)
+			}
+		})
 	}
 }

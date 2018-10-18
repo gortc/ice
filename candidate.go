@@ -32,6 +32,13 @@ func (a Addr) String() string {
 	return fmt.Sprintf("%s:%d/%s", a.IP, a.Port, a.Proto)
 }
 
+// Candidates is list of candidates ordered by priority descending.
+type Candidates []Candidate
+
+func (c Candidates) Len() int           { return len(c) }
+func (c Candidates) Less(i, j int) bool { return c[i].Priority > c[j].Priority }
+func (c Candidates) Swap(i, j int)      { c[i], c[j] = c[j], c[i] }
+
 // The Candidate is a transport address that is a potential point of contact
 // for receipt of data. Candidates also have properties — their type
 // (server reflexive, relayed, or host), priority, foundation, and base.

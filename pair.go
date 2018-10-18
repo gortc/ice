@@ -1,5 +1,7 @@
 package ice
 
+import "net"
+
 func min(a, b int64) int64 {
 	if a < b {
 		return a
@@ -82,3 +84,43 @@ type Pairs []Pair
 func (p Pairs) Len() int           { return len(p) }
 func (p Pairs) Less(i, j int) bool { return p[i].Priority > p[j].Priority }
 func (p Pairs) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
+
+func sameFamily(a, b net.IP) bool {
+	return len(a.To4()) == len(b.To4())
+}
+
+// NewPairs pairs each local candidate with each remote candidate for the same
+// component of the same data stream with the same IP address family. Candidates
+// should be sorted by priority in descending order, which is default order for
+// the Candidates type. Populates only Local and Remote fields of Pair.
+//
+// See RFC 8445 Section 6.1.2.2.
+func NewPairs(local, remote Candidates) Pairs {
+	p := make(Pairs, 0, 100)
+	for l := range local {
+		for r := range remote {
+			// Same data stream.
+			if local[l].ComponentID != remote[r].ComponentID {
+				continue
+			}
+			var (
+				ipL, ipR = local[l].Addr.IP, remote[r].Addr.IP
+			)
+			// Same IP address family.
+			if !sameFamily(ipL, ipR) {
+				continue
+			}
+			if ipL.To4() == nil && ipL.IsLinkLocalUnicast() {
+				// IPv6 link-local addresses MUST NOT be paired with other
+				// than link-local addresses.
+				if !ipR.IsLinkLocalUnicast() {
+					continue
+				}
+			}
+			p = append(p, Pair{
+				Local: local[l], Remote: local[r],
+			})
+		}
+	}
+	return p
+}
