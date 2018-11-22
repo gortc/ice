@@ -83,6 +83,6 @@ func TestAgentAPI(t *testing.T) {
 	list.Prune()
 	t.Logf("got %d pairs", len(list.Pairs))
 	for _, p := range list.Pairs {
-		t.Logf("%s -> %s", p.Local.Addr, p.Remote.Addr)
+		t.Logf("%s -> %s [%x]", p.Local.Addr, p.Remote.Addr, p.Foundation())
 	}
 }
