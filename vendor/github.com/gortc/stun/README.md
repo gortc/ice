@@ -8,13 +8,13 @@
 ![GitHub tag](https://img.shields.io/github/tag/gortc/stun.svg)
 [![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fgortc%2Fstun.svg?type=shield)](https://app.fossa.io/projects/git%2Bgithub.com%2Fgortc%2Fstun?ref=badge_shield)
 # STUN
-Package stun implements Session Traversal Utilities for NAT (STUN) [[RFC 5389](https://tools.ietf.org/html/rfc5389)]
+Package stun implements Session Traversal Utilities for NAT (STUN) [[RFC5389](https://tools.ietf.org/html/rfc5389)]
 protocol and [client](https://godoc.org/github.com/gortc/stun#Client) with no external dependencies and zero allocations in hot paths.
 Client [supports](https://godoc.org/github.com/gortc/stun#WithRTO) automatic request retransmissions.
 Complies to [gortc principles](https://gortc.io/#principles) as core package.
 
 See [example](https://godoc.org/github.com/gortc/stun#example-Message) and [stun server](https://github.com/gortc/stund) for simple usage.
-Also see [gortc/turn](https://github.com/gortc/turn) for TURN [[RFC 5766](https://tools.ietf.org/html/rfc5766)] implementation and
+Also see [gortc/turn](https://github.com/gortc/turn) for TURN [[RFC5766](https://tools.ietf.org/html/rfc5766)] implementation and
 [gortcd](https://github.com/gortc/gortcd) for TURN and STUN server.
 
 # Example
@@ -57,6 +57,7 @@ func main() {
 
 ## Supported RFCs
 - [x] [RFC 5389](https://tools.ietf.org/html/rfc5389) — Session Traversal Utilities for NAT
+- [x] [RFC 5769](https://tools.ietf.org/html/rfc5769) — Test Vectors for STUN
 - [x] [RFC 6062](https://tools.ietf.org/html/rfc6062) — TURN extensions for TCP allocations
 - [x] [RFC 7064](https://tools.ietf.org/html/rfc7064) — STUN URI
 - [x] (TLS-over-)TCP client support
@@ -77,6 +78,18 @@ RFC 3489 can be easily implemented as separate package.
 
 # Requirements
 Go 1.10 is currently supported and tested in CI. Should work on 1.9 and tip.
+
+# Testing
+Client behavior is tested and verified in many ways:
+  * End-To-End with long-term credentials
+    * **coturn**: The coturn [server](https://github.com/coturn/coturn/wiki/turnserver) (linux)
+  * Bunch of code static checkers (linters)
+  * Standard unit-tests with coverage reporting (linux {amd64, **arm**64}, windows and darwin)
+  * Explicit API backward compatibility [check](https://github.com/gortc/api), see `api` directory
+
+See [TeamCity project](https://tc.gortc.io/project.html?projectId=stun&guest=1) and `e2e` directory
+for more information. Also the Wireshark `.pcap` files are available for e2e test in
+artifacts for build.
 
 # Benchmarks
 
