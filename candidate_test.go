@@ -223,7 +223,50 @@ func TestCandidate_Equal(t *testing.T) {
 			},
 			Equal: false,
 		},
-		// TODO: Add more cases.
+		{
+			Name: "addr",
+			B: Candidate{
+				Addr: Addr{
+					IP: net.IPv4(127, 0, 0, 1),
+				},
+			},
+			Equal: false,
+		},
+		{
+			Name: "foundation",
+			A: Candidate{
+				Foundation: []byte{2},
+			},
+			B: Candidate{
+				Foundation: []byte{1},
+			},
+			Equal: false,
+		},
+		{
+			Name: "base",
+			B: Candidate{
+				Base: Addr{
+					IP: net.IPv4(127, 0, 0, 1),
+				},
+			},
+			Equal: false,
+		},
+		{
+			Name: "related",
+			B: Candidate{
+				Related: Addr{
+					IP: net.IPv4(127, 0, 0, 1),
+				},
+			},
+			Equal: false,
+		},
+		{
+			Name: "componentID",
+			B: Candidate{
+				ComponentID: 10,
+			},
+			Equal: false,
+		},
 	} {
 		t.Run(tc.Name, func(t *testing.T) {
 			if v := tc.A.Equal(tc.B); v != tc.Equal {
