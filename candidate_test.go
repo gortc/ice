@@ -3,6 +3,7 @@ package ice
 import (
 	"bytes"
 	"net"
+	"sort"
 	"testing"
 
 	"github.com/gortc/ice/candidate"
@@ -273,5 +274,19 @@ func TestCandidate_Equal(t *testing.T) {
 				t.Error("not equal")
 			}
 		})
+	}
+}
+
+func TestCandidatesSort(t *testing.T) {
+	candidates := Candidates{
+		{Priority: 1}, {Priority: 3}, {Priority: 2},
+	}
+	sort.Sort(candidates)
+	for i, p := range []int{3, 2, 1} {
+		if candidates[i].Priority != p {
+			t.Errorf("p[%d] %d (got) != %d (expected)", i,
+				candidates[i].Priority, p,
+			)
+		}
 	}
 }
