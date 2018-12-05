@@ -9,7 +9,7 @@ func TestChecklist_Order(t *testing.T) {
 			{Priority: 10},
 		},
 	}
-	c.Order()
+	c.Sort()
 	if c.Pairs[0].Priority == 1 {
 		t.Error("pair with 1 priority should be second")
 	}

@@ -79,7 +79,7 @@ func TestAgentAPI(t *testing.T) {
 	list := new(Checklist)
 	list.Pairs = NewPairs(local, remote)
 	list.ComputePriorities(Controlling)
-	list.Order()
+	list.Sort()
 	list.Prune()
 	t.Logf("got %d pairs", len(list.Pairs))
 	for _, p := range list.Pairs {

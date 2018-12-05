@@ -63,9 +63,9 @@ func (c *Checklist) ComputePriorities(role Role) {
 	}
 }
 
-// Order is ordering pairs by priority descending.
+// Sort is ordering pairs by priority descending.
 // First element will have highest priority.
-func (c *Checklist) Order() { sort.Sort(c.Pairs) }
+func (c *Checklist) Sort() { sort.Sort(c.Pairs) }
 
 // Prune removes redundant candidates.
 //
