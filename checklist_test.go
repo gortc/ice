@@ -127,3 +127,13 @@ func TestChecklist_Limit(t *testing.T) {
 		t.Error("unexpected length ")
 	}
 }
+
+func TestChecklistState_String(t *testing.T) {
+	for _, s := range []ChecklistState{
+		ChecklistRunning, ChecklistCompleted, ChecklistFailed,
+	} {
+		if len(s.String()) == 0 {
+			t.Errorf("checlist iota %d should have String() value", int(s))
+		}
+	}
+}
