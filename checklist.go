@@ -105,6 +105,4 @@ func (c *Checklist) Limit(max int) {
 }
 
 // Len returns pairs count.
-func (c *Checklist) Len() int {
-	return len(c.Pairs)
-}
+func (c *Checklist) Len() int { return len(c.Pairs) }
