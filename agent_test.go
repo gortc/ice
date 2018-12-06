@@ -86,3 +86,67 @@ func TestAgentAPI(t *testing.T) {
 		t.Logf("%s -> %s [%x]", p.Local.Addr, p.Remote.Addr, p.Foundation())
 	}
 }
+
+func TestAgent_updateState(t *testing.T) {
+	for _, tc := range []struct {
+		Name  string
+		State State
+		Agent *Agent
+	}{
+		{
+			Name:  "OneCompleted",
+			State: Completed,
+			Agent: &Agent{
+				set: ChecklistSet{
+					{State: ChecklistCompleted},
+				},
+			},
+		},
+		{
+			Name:  "OneFailed",
+			State: Failed,
+			Agent: &Agent{
+				set: ChecklistSet{
+					{State: ChecklistFailed},
+				},
+			},
+		},
+		{
+			Name:  "OneRunning",
+			State: Running,
+			Agent: &Agent{
+				set: ChecklistSet{
+					{State: ChecklistRunning},
+				},
+			},
+		},
+		{
+			Name:  "OneCompletedOneRunning",
+			State: Running,
+			Agent: &Agent{
+				set: ChecklistSet{
+					{State: ChecklistRunning},
+					{State: ChecklistCompleted},
+				},
+			},
+		},
+		{
+			Name:  "OneFailedOneRunning",
+			State: Running,
+			Agent: &Agent{
+				set: ChecklistSet{
+					{State: ChecklistRunning},
+					{State: ChecklistFailed},
+				},
+			},
+		},
+	} {
+		t.Run(tc.Name, func(t *testing.T) {
+			tc.Agent.updateState()
+			if tc.State != tc.Agent.state {
+				t.Errorf("%s (got) != %s (expected)", tc.Agent.state, tc.State)
+			}
+		})
+	}
+
+}
