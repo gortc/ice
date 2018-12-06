@@ -15,24 +15,33 @@ const (
 	Controlled
 )
 
-type connectionKey struct {
+// contextKey is map key for candidate context.
+type contextKey struct {
 	IP    [net.IPv6len]byte
 	Proto ct.Protocol
 	Port  int
 }
 
+// ChecklistSet represents ordered list of checklists.
 type ChecklistSet []Checklist
 
 // Agent implements ICE Agent.
 type Agent struct {
-	con   map[connectionKey]net.Conn
+	ctx   map[contextKey]context
 	set   ChecklistSet
 	state State
 }
 
+// context wraps resources for candidate.
+type context struct {
+	// STUN Agent, TURN client, socket, etc.
+}
+
+func (c *context) Close() error { return nil }
+
 func (a *Agent) updateState() {
-	state := Running
 	var (
+		state        = Running
 		allCompleted = true
 		allFailed    = true
 	)
