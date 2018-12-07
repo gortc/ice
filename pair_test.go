@@ -34,7 +34,8 @@ func TestPair_Foundation(t *testing.T) {
 			Foundation: make([]byte, foundationLength),
 		},
 	}
-	f := p.Foundation()
+	p.SetFoundation()
+	f := p.Foundation
 	if len(f) != foundationLength*2 {
 		t.Error("bad length")
 	}

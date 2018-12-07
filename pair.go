@@ -32,10 +32,11 @@ func PairPriority(controlling, controlled int) int64 {
 
 // Pair wraps two candidates, one is local, other is remote.
 type Pair struct {
-	Local    Candidate
-	Remote   Candidate
-	Priority int64
-	State    PairState
+	Local      Candidate
+	Remote     Candidate
+	Priority   int64
+	State      PairState
+	Foundation []byte
 }
 
 // PairState as defined in RFC 8445 Section 6.1.2.6.
@@ -70,12 +71,12 @@ const (
 	PairWaiting
 )
 
-// Foundation is combination of candidates foundations.
-func (p Pair) Foundation() []byte {
+// SetFoundation sets foundation, the combination of candidates foundations.
+func (p *Pair) SetFoundation() {
 	f := make([]byte, foundationLength*2)
 	copy(f[:foundationLength], p.Local.Foundation)
 	copy(f[foundationLength:], p.Remote.Foundation)
-	return f
+	p.Foundation = f
 }
 
 // Pairs is ordered slice of Pair elements.
@@ -117,9 +118,12 @@ func NewPairs(local, remote Candidates) Pairs {
 					continue
 				}
 			}
-			p = append(p, Pair{
-				Local: local[l], Remote: local[r],
-			})
+			pair := Pair{
+				Local:  local[l],
+				Remote: local[r],
+			}
+			pair.SetFoundation()
+			p = append(p, pair)
 		}
 	}
 	return p
