@@ -53,7 +53,7 @@ func (s *ChecklistState) UnmarshalText(text []byte) error {
 	return fmt.Errorf("unknown checklist state value: %q", text)
 }
 
-// MarshalText implements TextUnmarshaler.
+// MarshalText implements TextMarshaler.
 func (s ChecklistState) MarshalText() (text []byte, err error) {
 	return []byte(checklistStateToStr[s]), nil
 }
