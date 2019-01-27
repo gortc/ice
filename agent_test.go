@@ -158,12 +158,17 @@ func TestAgent_updateState(t *testing.T) {
 func TestAgent_init(t *testing.T) {
 	a := Agent{}
 	var c Checklist
-	loadGoldenJSON(t, c, "checklist.json")
+	loadGoldenJSON(t, &c, "checklist.json")
 	a.set = append(a.set, c)
 	a.init()
 	a.updateState()
 	t.Logf("state: %s", a.state)
 	if *writeGolden {
 		saveGoldenJSON(t, a.set[0], "checklist_updated.json")
+	}
+	var cGolden Checklist
+	loadGoldenJSON(t, &cGolden, "checklist_updated.json")
+	if !cGolden.Equal(a.set[0]) {
+		t.Error("got unexpected checklist after init")
 	}
 }

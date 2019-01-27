@@ -21,6 +21,22 @@ type Checklist struct {
 	State ChecklistState `json:"state"`
 }
 
+// Equal returns true if checklist c equals to checklist b.
+func (c Checklist) Equal(b Checklist) bool {
+	if c.State != b.State {
+		return false
+	}
+	if len(c.Pairs) != len(b.Pairs) {
+		return false
+	}
+	for i := range c.Pairs {
+		if !c.Pairs[i].Equal(b.Pairs[i]) {
+			return false
+		}
+	}
+	return true
+}
+
 // ChecklistState represents the Checklist State.
 //
 // See RFC 8445 Section 6.1.2.1
