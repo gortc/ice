@@ -1,6 +1,58 @@
 package ice
 
-import "testing"
+import (
+	"bytes"
+	"encoding/json"
+	"testing"
+
+	"github.com/gortc/ice/candidate"
+)
+
+func TestChecklistJSON(t *testing.T) {
+	c := Checklist{
+		State: ChecklistCompleted,
+		Pairs: Pairs{
+			{
+				Local:  Candidate{Priority: 102, Type: candidate.PeerReflexive},
+				Remote: Candidate{Priority: 91},
+				State:  PairSucceeded,
+			},
+			{
+				Local:  Candidate{Priority: 100, Type: candidate.Relayed},
+				Remote: Candidate{Priority: 50},
+				State:  PairWaiting,
+			},
+			{
+				Local:  Candidate{Priority: 103},
+				Remote: Candidate{Priority: 93},
+				State:  PairFrozen,
+			},
+			{
+				Local:  Candidate{Priority: 104},
+				Remote: Candidate{Priority: 94},
+				State:  PairFailed,
+			},
+			{
+				Local:  Candidate{Priority: 101},
+				Remote: Candidate{Priority: 90},
+				State:  PairInProgress,
+			},
+		},
+	}
+	buf := new(bytes.Buffer)
+	e := json.NewEncoder(buf)
+	if err := e.Encode(c); err != nil {
+		t.Fatal(err)
+	}
+	d := json.NewDecoder(buf)
+	var cGot Checklist
+	if err := d.Decode(&cGot); err != nil {
+		t.Fatal(err)
+	}
+	if !cGot.Equal(c) {
+		t.Error("not equal")
+	}
+}
 
 func TestChecklist_Order(t *testing.T) {
 	c := Checklist{
