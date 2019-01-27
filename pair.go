@@ -1,6 +1,9 @@
 package ice
 
-import "net"
+import (
+	"fmt"
+	"net"
+)
 
 func min(a, b int64) int64 {
 	if a < b {
@@ -32,15 +35,31 @@ func PairPriority(controlling, controlled int) int64 {
 
 // Pair wraps two candidates, one is local, other is remote.
 type Pair struct {
-	Local      Candidate
-	Remote     Candidate
-	Priority   int64
-	State      PairState
-	Foundation []byte
+	Local      Candidate `json:"local"`
+	Remote     Candidate `json:"remote"`
+	Priority   int64     `json:"priority"`
+	State      PairState `json:"state"`
+	Foundation []byte    `json:"foundation"`
 }
 
 // PairState as defined in RFC 8445 Section 6.1.2.6.
 type PairState byte
+
+// UnmarshalText implements TextUnmarshaler.
+func (s *PairState) UnmarshalText(text []byte) error {
+	for k, v := range pairStateToStr {
+		if string(text) == v {
+			*s = k
+			return nil
+		}
+	}
+	return fmt.Errorf("unknown pair state value %q", text)
+}
+
+// MarshalText implements TextMarshaler.
+func (s PairState) MarshalText() ([]byte, error) {
+	return []byte(s.String()), nil
+}
 
 var pairStateToStr = map[PairState]string{
 	PairWaiting:    "Waiting",

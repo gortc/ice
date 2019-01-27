@@ -86,6 +86,9 @@ func TestAgentAPI(t *testing.T) {
 		p.SetFoundation()
 		t.Logf("%s -> %s [%x]", p.Local.Addr, p.Remote.Addr, p.Foundation)
 	}
+	if *writeGolden {
+		saveGoldenJSON(t, list, "checklist.json")
+	}
 }
 
 func TestAgent_updateState(t *testing.T) {
@@ -154,5 +157,13 @@ func TestAgent_updateState(t *testing.T) {
 
 func TestAgent_init(t *testing.T) {
 	a := Agent{}
+	var c Checklist
+	loadGoldenJSON(t, c, "checklist.json")
+	a.set = append(a.set, c)
 	a.init()
+	a.updateState()
+	t.Logf("state: %s", a.state)
+	if *writeGolden {
+		saveGoldenJSON(t, a.set[0], "checklist_updated.json")
+	}
 }

@@ -12,9 +12,9 @@ import (
 // Addr represents transport address, the combination of an IP address
 // and the transport protocol (such as UDP or TCP) port.
 type Addr struct {
-	IP    net.IP
-	Port  int
-	Proto ct.Protocol
+	IP    net.IP      `json:"ip,omitempty"`
+	Port  int         `json:"port,omitempty"`
+	Proto ct.Protocol `json:"proto,omitempty"`
 }
 
 // Equal returns true of b equals to a.
@@ -43,13 +43,13 @@ func (c Candidates) Swap(i, j int)      { c[i], c[j] = c[j], c[i] }
 // for receipt of data. Candidates also have properties — their type
 // (server reflexive, relayed, or host), priority, foundation, and base.
 type Candidate struct {
-	Addr        Addr
-	Type        ct.Type
-	Priority    int
-	Foundation  []byte
-	Base        Addr
-	Related     Addr
-	ComponentID int
+	Addr        Addr    `json:"addr"`
+	Type        ct.Type `json:"type"`
+	Priority    int     `json:"priority"`
+	Foundation  []byte  `json:"foundation"`
+	Base        Addr    `json:"base,omitempty"`
+	Related     Addr    `json:"related,omitempty"`
+	ComponentID int     `json:"component_id"`
 }
 
 // Equal reports whether c equals to b.

@@ -1,6 +1,9 @@
 package ice
 
-import "sort"
+import (
+	"fmt"
+	"sort"
+)
 
 // Checklist is set of pairs.
 //
@@ -14,14 +17,30 @@ import "sort"
 // 	a checklist (e.g., due to detection of peer-reflexive candidates),
 // 	the agent will re-perform these steps for the updated checklist.
 type Checklist struct {
-	Pairs Pairs
-	State ChecklistState
+	Pairs Pairs          `json:"pairs,omitempty"`
+	State ChecklistState `json:"state"`
 }
 
 // ChecklistState represents the Checklist State.
 //
 // See RFC 8445 Section 6.1.2.1
 type ChecklistState byte
+
+// UnmarshalText implements TextUnmarshaler.
+func (s *ChecklistState) UnmarshalText(text []byte) error {
+	for k, v := range checklistStateToStr {
+		if string(text) == v {
+			*s = k
+			return nil
+		}
+	}
+	return fmt.Errorf("unknown checklist state value: %q", text)
+}
+
+// MarshalText implements TextUnmarshaler.
+func (s ChecklistState) MarshalText() (text []byte, err error) {
+	return []byte(checklistStateToStr[s]), nil
+}
 
 var checklistStateToStr = map[ChecklistState]string{
 	ChecklistRunning:   "Running",

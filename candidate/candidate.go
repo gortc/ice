@@ -1,12 +1,28 @@
 // Package candidate contains common types for ice candidate.
 package candidate
 
+import "fmt"
+
 // Type encodes the type of candidate. This specification
 // defines the values "host", "srflx", "prflx", and "relay" for host,
 // server reflexive, peer reflexive, and relayed candidates,
 // respectively. The set of candidate types is extensible for the
 // future.
 type Type byte
+
+func (t *Type) UnmarshalText(text []byte) error {
+	for k, v := range candidateTypeToStr {
+		if string(text) == v {
+			*t = k
+			return nil
+		}
+	}
+	return fmt.Errorf("unknown candidate type value: %q", text)
+}
+
+func (t Type) MarshalText() (text []byte, err error) {
+	return []byte(candidateTypeToStr[t]), nil
+}
 
 // Set of possible candidate types.
 const (
@@ -29,25 +45,39 @@ const (
 )
 
 var candidateTypeToStr = map[Type]string{
-	Host:            "host",
-	ServerReflexive: "server-reflexive",
-	PeerReflexive:   "peer-reflexive",
-	Relayed:         "relayed",
+	Host:            "Host",
+	ServerReflexive: "Server-reflexive",
+	PeerReflexive:   "Peer-reflexive",
+	Relayed:         "Relayed",
 }
 
 func strOrUnknown(str string) string {
 	if len(str) == 0 {
-		return "unknown"
+		return "Unknown"
 	}
 	return str
 }
 
-func (c Type) String() string {
-	return strOrUnknown(candidateTypeToStr[c])
+func (t Type) String() string {
+	return strOrUnknown(candidateTypeToStr[t])
 }
 
 // Protocol is protocol for address.
 type Protocol byte
+
+func (t *Protocol) UnmarshalText(s []byte) error {
+	switch string(s) {
+	case "udp", "UDP":
+		*t = UDP
+	default:
+		*t = ProtocolUnknown
+	}
+	return nil
+}
+
+func (t Protocol) MarshalText() ([]byte, error) {
+	return []byte(t.String()), nil
+}
 
 // Supported protocols.
 const (

@@ -2,6 +2,7 @@ package ice
 
 import (
 	"bytes"
+	"fmt"
 	"net"
 
 	ct "github.com/gortc/ice/candidate"
@@ -9,6 +10,35 @@ import (
 
 // Role represents ICE agent role, which can be controlling or controlled.
 type Role byte
+
+// UnmarshalText implements TextUnmarshaler.
+func (r *Role) UnmarshalText(text []byte) error {
+	switch string(text) {
+	case "controlling":
+		*r = Controlling
+	case "controlled":
+		*r = Controlled
+	default:
+		return fmt.Errorf("unknown role %q", text)
+	}
+	return nil
+}
+
+// MarshalText implements TextMarshaler.
+func (r Role) MarshalText() (text []byte, err error) {
+	return []byte(r.String()), nil
+}
+
+func (r Role) String() string {
+	switch r {
+	case Controlling:
+		return "controlling"
+	case Controlled:
+		return "controlled"
+	default:
+		return "unknown"
+	}
+}
 
 // Possible ICE agent roles.
 const (
@@ -72,6 +102,9 @@ type foundationKey [maxFoundationLength]byte
 
 // init sets initial states for checklist sets.
 func (a *Agent) init() {
+	if a.ctx == nil {
+		a.ctx = make(map[contextKey]context)
+	}
 	// Gathering all unique foundations.
 	foundations := make(map[foundationKey]struct{})
 	for _, c := range a.set {
@@ -94,7 +127,6 @@ func (a *Agent) init() {
 			a.foundations = append(a.foundations, f)
 		}
 	}
-
 	// For each foundation, the agent sets the state of exactly one
 	// candidate pair to the Waiting state (unfreezing it).  The
 	// candidate pair to unfreeze is chosen by finding the first
