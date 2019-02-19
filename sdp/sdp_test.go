@@ -442,7 +442,7 @@ func TestAddressType_String(t *testing.T) {
 		{in: AddressIPv4, out: "IPv4"},
 		{in: AddressIPv6, out: "IPv6"},
 		{in: AddressFQDN, out: "FQDN"},
-		{in: AddressFQDN + 10, out: "unknown"},
+		{in: AddressFQDN + 10, out: "Unknown"},
 	} {
 		t.Run(tt.out, func(t *testing.T) {
 			if tt.in.String() != tt.out {
