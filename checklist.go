@@ -30,7 +30,7 @@ func (c Checklist) Equal(b Checklist) bool {
 		return false
 	}
 	for i := range c.Pairs {
-		if !c.Pairs[i].Equal(b.Pairs[i]) {
+		if !c.Pairs[i].Equal(&b.Pairs[i]) {
 			return false
 		}
 	}
@@ -119,7 +119,7 @@ Loop:
 				continue
 			}
 			// Check if remote candidates are identical.
-			if !result[j].Remote.Equal(c.Pairs[i].Remote) {
+			if !result[j].Remote.Equal(&c.Pairs[i].Remote) {
 				continue
 			}
 			// Pair is redundant, skipping.

@@ -53,7 +53,7 @@ type Candidate struct {
 }
 
 // Equal reports whether c equals to b.
-func (c Candidate) Equal(b Candidate) bool {
+func (c *Candidate) Equal(b *Candidate) bool {
 	if c.Type != b.Type {
 		return false
 	}
@@ -106,7 +106,7 @@ func Foundation(c *Candidate, serverAddr Addr) []byte {
 			[]byte{byte(serverAddr.Proto)},
 		)
 	}
-	h.Write(bytes.Join(values, []byte{':'})) // #nosec
+	_, _ = h.Write(bytes.Join(values, []byte{':'})) // #nosec
 	return h.Sum(nil)[:foundationLength]
 }
 

@@ -270,7 +270,7 @@ func TestCandidate_Equal(t *testing.T) {
 		},
 	} {
 		t.Run(tc.Name, func(t *testing.T) {
-			if v := tc.A.Equal(tc.B); v != tc.Equal {
+			if v := tc.A.Equal(&tc.B); v != tc.Equal {
 				t.Error("not equal")
 			}
 		})

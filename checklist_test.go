@@ -184,7 +184,7 @@ func TestChecklistState_String(t *testing.T) {
 	for _, s := range []ChecklistState{
 		ChecklistRunning, ChecklistCompleted, ChecklistFailed,
 	} {
-		if len(s.String()) == 0 {
+		if s.String() == "" {
 			t.Errorf("checlist iota %d should have String() value", int(s))
 		}
 	}

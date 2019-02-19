@@ -134,7 +134,6 @@ func (a *Agent) init() {
 	// highest priority if component IDs are equal) in the first
 	// checklist (according to the usage-defined checklist set order)
 	// that has that foundation.
-Loop:
 	for _, f := range a.foundations {
 		for _, c := range a.set {
 			for i := range c.Pairs {
@@ -142,7 +141,7 @@ Loop:
 					continue
 				}
 				c.Pairs[i].State = PairWaiting
-				continue Loop
+				break
 			}
 		}
 	}

@@ -26,8 +26,8 @@ const (
 )
 
 func strOrUnknown(str string) string {
-	if len(str) == 0 {
-		return "unknown"
+	if str == "" {
+		return "Unknown"
 	}
 	return str
 }
@@ -100,22 +100,18 @@ const (
 // for NAT (STUN)).
 type Candidate struct {
 	ConnectionAddress Address
-	Port              int
-	Transport         ct.Protocol
+	RelatedAddress    Address
 	TransportValue    []byte
+	Attributes        Attributes // other
+	Port              int
 	Foundation        int
 	ComponentID       int
 	Priority          int
-	Type              ct.Type
-	RelatedAddress    Address
 	RelatedPort       int
-
-	// Extended attributes
-	NetworkCost int
-	Generation  int
-
-	// Other attributes
-	Attributes Attributes
+	NetworkCost       int // extended
+	Generation        int // extended
+	Transport         ct.Protocol
+	Type              ct.Type
 }
 
 // Reset sets all fields to zero values.
@@ -131,7 +127,7 @@ func (c *Candidate) Reset() {
 }
 
 // Equal returns true if b candidate is equal to ct.
-func (c Candidate) Equal(b *Candidate) bool {
+func (c *Candidate) Equal(b *Candidate) bool {
 	if !c.ConnectionAddress.Equal(b.ConnectionAddress) {
 		return false
 	}

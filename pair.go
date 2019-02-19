@@ -44,17 +44,17 @@ type Pair struct {
 }
 
 // Equal returns true if pair p equals to pair b.
-func (p Pair) Equal(b Pair) bool {
+func (p *Pair) Equal(b *Pair) bool {
 	if p.State != b.State {
 		return false
 	}
 	if p.Priority != b.Priority {
 		return false
 	}
-	if !p.Local.Equal(b.Local) {
+	if !p.Local.Equal(&b.Local) {
 		return false
 	}
-	if !p.Remote.Equal(b.Remote) {
+	if !p.Remote.Equal(&b.Remote) {
 		return false
 	}
 	if !bytes.Equal(p.Foundation, b.Foundation) {

@@ -52,7 +52,7 @@ var candidateTypeToStr = map[Type]string{
 }
 
 func strOrUnknown(str string) string {
-	if len(str) == 0 {
+	if str == "" {
 		return "Unknown"
 	}
 	return str
