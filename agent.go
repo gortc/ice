@@ -100,6 +100,15 @@ func (a *Agent) updateState() {
 
 type foundationKey [maxFoundationLength]byte
 
+func pairContextKey(p Pair) contextKey {
+	k := contextKey{
+		Proto: p.Local.Addr.Proto,
+		Port:  p.Local.Addr.Port,
+	}
+	copy(k.IP[:], p.Local.Addr.IP)
+	return k
+}
+
 // init sets initial states for checklist sets.
 func (a *Agent) init() {
 	if a.ctx == nil {
@@ -110,11 +119,7 @@ func (a *Agent) init() {
 	for _, c := range a.set {
 		for i := range c.Pairs {
 			// Initializing context.
-			k := contextKey{}
-			l := c.Pairs[i].Local
-			copy(k.IP[:], l.Addr.IP)
-			k.Port = l.Addr.Port
-			k.Proto = l.Addr.Proto
+			k := pairContextKey(c.Pairs[i])
 			a.ctx[k] = context{}
 
 			f := c.Pairs[i].Foundation
