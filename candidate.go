@@ -95,16 +95,9 @@ func Foundation(c *Candidate, serverAddr Addr) []byte {
 		return nil
 	}
 	h := sha256.New()
-	values := [][]byte{
-		{byte(c.Type)},
-		c.Base.IP,
-		{byte(c.Addr.Proto)},
-	}
+	values := [][]byte{{byte(c.Type)}, c.Base.IP, {byte(c.Addr.Proto)}}
 	if len(serverAddr.IP) > 0 {
-		values = append(values,
-			serverAddr.IP,
-			[]byte{byte(serverAddr.Proto)},
-		)
+		values = append(values, serverAddr.IP, []byte{byte(serverAddr.Proto)})
 	}
 	_, _ = h.Write(bytes.Join(values, []byte{':'})) // #nosec
 	return h.Sum(nil)[:foundationLength]

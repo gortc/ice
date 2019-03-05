@@ -92,9 +92,7 @@ func (s Addrs) Len() int {
 
 func (a Addr) String() string {
 	if len(a.Zone) > 0 {
-		return fmt.Sprintf("%s (zone %s) [%d]",
-			a.IP, a.Zone, a.Precedence,
-		)
+		return fmt.Sprintf("%s (zone %s) [%d]", a.IP, a.Zone, a.Precedence)
 	}
 	return fmt.Sprintf("%s [%d]", a.IP, a.Precedence)
 }

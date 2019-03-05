@@ -144,9 +144,7 @@ func NewPairs(local, remote Candidates) Pairs {
 			if local[l].ComponentID != remote[r].ComponentID {
 				continue
 			}
-			var (
-				ipL, ipR = local[l].Addr.IP, remote[r].Addr.IP
-			)
+			ipL, ipR := local[l].Addr.IP, remote[r].Addr.IP
 			// Same IP address family.
 			if !sameFamily(ipL, ipR) {
 				continue
