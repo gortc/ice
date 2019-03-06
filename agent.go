@@ -2,8 +2,11 @@ package ice
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"net"
+
+	"github.com/gortc/stun"
 
 	ct "github.com/gortc/ice/candidate"
 )
@@ -60,15 +63,26 @@ const maxFoundationLength = 64
 
 // Agent implements ICE Agent.
 type Agent struct {
-	ctx         map[contextKey]context
 	set         ChecklistSet
-	state       State
 	foundations [][]byte
+	ctx         map[contextKey]context
+	role        Role
+	state       State
+}
+
+type ctxSTUNClient interface {
+	Do(m *stun.Message, f func(stun.Event)) error
 }
 
 // context wraps resources for candidate.
 type context struct {
 	// STUN Agent, TURN client, socket, etc.
+	stun ctxSTUNClient // local (client) -> remote (server)
+
+	localUsername  string // LFRAG
+	localPassword  string // LPASS
+	remoteUsername string // RFRAG
+	remotePassword string // RPASS
 }
 
 func (c *context) Close() error { return nil }
@@ -100,13 +114,68 @@ func (a *Agent) updateState() {
 
 type foundationKey [maxFoundationLength]byte
 
-func pairContextKey(p Pair) contextKey {
+func pairContextKey(p *Pair) contextKey {
 	k := contextKey{
 		Proto: p.Local.Addr.Proto,
 		Port:  p.Local.Addr.Port,
 	}
 	copy(k.IP[:], p.Local.Addr.IP)
 	return k
+}
+
+// check performs connectivity check for pair.
+func (a *Agent) check(p *Pair) error {
+	// Once the agent has picked a candidate pair for which a connectivity
+	// check is to be performed, the agent starts a check and sends the
+	// Binding request from the base associated with the local candidate of
+	// the pair to the remote candidate of the pair, as described in
+	// Section 7.2.4.
+	ctx := a.ctx[pairContextKey(p)]
+	// See RFC 8445 Section 7.2.2. Forming Credentials.
+	integrity := stun.NewShortTermIntegrity(ctx.remotePassword)
+	// The PRIORITY attribute MUST be included in a Binding request and be
+	// set to the value computed by the algorithm in Section 5.1.2 for the
+	// local candidate, but with the candidate type preference of peer-
+	// reflexive candidates.
+	priority := PriorityAttr(1)
+	var tieBreakerAttr stun.Setter = AttrControlled(124)
+	if a.role == Controlled {
+		tieBreakerAttr = AttrControlling(124)
+	}
+	m := stun.MustBuild(stun.TransactionID, stun.BindingRequest,
+		stun.NewUsername(ctx.remoteUsername+ctx.localUsername), priority, tieBreakerAttr,
+		integrity, stun.Fingerprint,
+	)
+	var bindingErr error
+	doErr := ctx.stun.Do(m, func(event stun.Event) {
+		if event.Error != nil {
+			bindingErr = event.Error
+			return
+		}
+		if event.Message.Type == stun.BindingError {
+			var errCode stun.ErrorCodeAttribute
+			if bindingErr := errCode.GetFrom(m); bindingErr != nil {
+				return
+			}
+			if errCode.Code == stun.CodeRoleConflict {
+				bindingErr = errors.New("role conflict")
+				return
+			}
+			bindingErr = fmt.Errorf("error %s", errCode)
+			return
+		}
+		if event.Message.Type != stun.BindingSuccess {
+			bindingErr = fmt.Errorf("bad responce message type: %s", event.Message.Type)
+			return
+		}
+	})
+	if doErr != nil {
+		return doErr
+	}
+	if bindingErr != nil {
+		return bindingErr
+	}
+	return nil
 }
 
 // init sets initial states for checklist sets.
@@ -119,7 +188,7 @@ func (a *Agent) init() {
 	for _, c := range a.set {
 		for i := range c.Pairs {
 			// Initializing context.
-			k := pairContextKey(c.Pairs[i])
+			k := pairContextKey(&c.Pairs[i])
 			a.ctx[k] = context{}
 
 			f := c.Pairs[i].Foundation

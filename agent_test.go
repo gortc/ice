@@ -186,7 +186,7 @@ func BenchmarkPairContextKey(b *testing.B) {
 	}
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		k := pairContextKey(p)
+		k := pairContextKey(&p)
 		if k.Port == 0 {
 			b.Fatal("bad port")
 		}
