@@ -137,10 +137,11 @@ func (a *Agent) check(p *Pair) error {
 	// set to the value computed by the algorithm in Section 5.1.2 for the
 	// local candidate, but with the candidate type preference of peer-
 	// reflexive candidates.
-	priority := PriorityAttr(1)
-	var tieBreakerAttr stun.Setter = AttrControlled(124)
+	priority := PriorityAttr(p.Local.Priority) // TODO(ar): compute as peer-reflexive
+	const tieBreakerValue = 124
+	var tieBreakerAttr stun.Setter = AttrControlling(tieBreakerValue)
 	if a.role == Controlled {
-		tieBreakerAttr = AttrControlling(124)
+		tieBreakerAttr = AttrControlled(tieBreakerValue)
 	}
 	m := stun.MustBuild(stun.TransactionID, stun.BindingRequest,
 		stun.NewUsername(ctx.remoteUsername+ctx.localUsername), priority, tieBreakerAttr,
