@@ -245,8 +245,14 @@ func TestAgent_init(t *testing.T) {
 
 func BenchmarkPairContextKey(b *testing.B) {
 	p := Pair{
-		Remote: Candidate{},
 		Local: Candidate{
+			Addr: Addr{
+				IP:    net.IPv4(127, 0, 0, 1),
+				Port:  31223,
+				Proto: candidate.UDP,
+			},
+		},
+		Remote: Candidate{
 			Addr: Addr{
 				IP:    net.IPv4(127, 0, 0, 1),
 				Port:  31223,
@@ -257,7 +263,7 @@ func BenchmarkPairContextKey(b *testing.B) {
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		k := pairContextKey(&p)
-		if k.Port == 0 {
+		if k.LocalPort == 0 {
 			b.Fatal("bad port")
 		}
 	}

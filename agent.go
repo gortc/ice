@@ -52,11 +52,14 @@ const (
 	Controlled
 )
 
-// contextKey is map key for candidate context.
+// contextKey is map key for candidate pair context.
 type contextKey struct {
-	IP    [net.IPv6len]byte
-	Proto ct.Protocol
-	Port  int
+	LocalPort   int
+	RemotePort  int
+	LocalIP     [net.IPv6len]byte
+	RemoteIP    [net.IPv6len]byte
+	LocalProto  ct.Protocol
+	RemoteProto ct.Protocol
 }
 
 // ChecklistSet represents ordered list of checklists.
@@ -121,10 +124,13 @@ type foundationKey [maxFoundationLength]byte
 
 func pairContextKey(p *Pair) contextKey {
 	k := contextKey{
-		Proto: p.Local.Addr.Proto,
-		Port:  p.Local.Addr.Port,
+		LocalProto:  p.Local.Addr.Proto,
+		LocalPort:   p.Local.Addr.Port,
+		RemoteProto: p.Remote.Addr.Proto,
+		RemotePort:  p.Remote.Addr.Port,
 	}
-	copy(k.IP[:], p.Local.Addr.IP)
+	copy(k.LocalIP[:], p.Remote.Addr.IP)
+	copy(k.RemoteIP[:], p.Remote.Addr.IP)
 	return k
 }
 
