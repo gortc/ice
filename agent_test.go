@@ -201,6 +201,18 @@ func TestAgent_check(t *testing.T) {
 		if err := a.check(pair); err != stun.ErrFingerprintMismatch {
 			t.Fatalf("unexpected error: %v", err)
 		}
+		t.Run("Should be done before integrity check", func(t *testing.T) {
+			stunAgent.do = func(m *stun.Message, f func(stun.Event)) error {
+				i := stun.NewShortTermIntegrity("RPASS+BAD")
+				badFP := stun.RawAttribute{Type: stun.AttrFingerprint, Value: []byte{'b', 'a', 'd', 0}}
+				response := stun.MustBuild(m, stun.BindingSuccess, i, badFP)
+				f(stun.Event{Message: response})
+				return nil
+			}
+			if err := a.check(pair); err != stun.ErrFingerprintMismatch {
+				t.Fatalf("unexpected error: %v", err)
+			}
+		})
 	})
 	t.Run("STUN Wrong response message type", func(t *testing.T) {
 		stunAgent.do = func(m *stun.Message, f func(stun.Event)) error {

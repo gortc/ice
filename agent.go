@@ -180,10 +180,6 @@ func (a *Agent) check(p *Pair) error {
 			bindingErr = event.Error
 			return
 		}
-		if err := integrity.Check(event.Message); err != nil {
-			bindingErr = err
-			return
-		}
 		switch err := stun.Fingerprint.Check(event.Message); err {
 		case stun.ErrAttributeNotFound:
 			bindingErr = errFingerprintNotFound
@@ -191,6 +187,10 @@ func (a *Agent) check(p *Pair) error {
 		case nil:
 			// OK.
 		default:
+			bindingErr = err
+			return
+		}
+		if err := integrity.Check(event.Message); err != nil {
 			bindingErr = err
 			return
 		}
