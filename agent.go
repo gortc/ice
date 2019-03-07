@@ -139,12 +139,16 @@ var (
 	errRoleConflict        = errors.New("role conflict")
 )
 
-type unexpectedResponseTypeErr struct {
-	Type stun.MessageType
-}
+type unexpectedResponseTypeErr struct{ Type stun.MessageType }
 
 func (e unexpectedResponseTypeErr) Error() string {
 	return fmt.Sprintf("peer responded with unexpected STUN message %s", e.Type)
+}
+
+type unrecoverableErrorCodeErr struct{ Code stun.ErrorCode }
+
+func (e unrecoverableErrorCodeErr) Error() string {
+	return fmt.Sprintf("peer responded with unrecoverable error code %d", e.Code)
 }
 
 // check performs connectivity check for pair.
@@ -199,7 +203,7 @@ func (a *Agent) check(p *Pair) error {
 				bindingErr = errRoleConflict
 				return
 			}
-			bindingErr = fmt.Errorf("error %s", errCode)
+			bindingErr = unrecoverableErrorCodeErr{Code: errCode.Code}
 			return
 		}
 		if event.Message.Type != stun.BindingSuccess {

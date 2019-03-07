@@ -143,8 +143,9 @@ func TestAgent_check(t *testing.T) {
 			})
 			return nil
 		}
-		if err := a.check(pair); err == nil {
-			t.Fatalf("unexpected success")
+		codeErr := unrecoverableErrorCodeErr{Code: stun.CodeBadRequest}
+		if err := a.check(pair); err != codeErr {
+			t.Fatalf("unexpected error %v", err)
 		}
 	})
 	t.Run("STUN Error response without code", func(t *testing.T) {
@@ -155,7 +156,7 @@ func TestAgent_check(t *testing.T) {
 			return nil
 		}
 		if err := a.check(pair); err == nil {
-			t.Fatalf("unexpected success")
+			t.Fatal("unexpected success")
 		}
 	})
 	t.Run("STUN Role conflict", func(t *testing.T) {
