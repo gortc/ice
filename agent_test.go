@@ -74,8 +74,17 @@ func TestAgent_check(t *testing.T) {
 	t.Logf("state: %s", a.state)
 	pair := &a.set[0].Pairs[0]
 	integrity := stun.NewShortTermIntegrity("RPASS")
-	stunAgent := &stunMock{
-		do: func(m *stun.Message, f func(stun.Event)) error {
+	stunAgent := &stunMock{}
+	a.ctx[pairContextKey(pair)] = context{
+		localUsername:  "LFRAG",
+		remoteUsername: "RFRAG",
+		remotePassword: "RPASS",
+		localPassword:  "LPASS",
+		stun:           stunAgent,
+	}
+	t.Run("OK", func(t *testing.T) {
+		checkCredentials := func(t *testing.T, m *stun.Message) {
+			t.Helper()
 			if err := integrity.Check(m); err != nil {
 				t.Errorf("failed to check integrity: %v", err)
 			}
@@ -86,32 +95,26 @@ func TestAgent_check(t *testing.T) {
 			if u.String() != "RFRAG:LFRAG" {
 				t.Errorf("unexpected username: %s", u)
 			}
-			var (
-				rControlling AttrControlling
-				rControlled  AttrControlled
-			)
-			if rControlled.GetFrom(m) == nil {
-				t.Error("unexpected controlled attribute")
-			}
-			if err := rControlling.GetFrom(m); err != nil {
-				t.Error(err)
-			}
-			if rControlling != 5721121980023635282 {
-				t.Errorf("unexpected tie-breaker: %d", rControlling)
-			}
-			f(stun.Event{Message: stun.MustBuild(m, stun.BindingSuccess, integrity, stun.Fingerprint)})
-			return nil
-		},
-	}
-	a.ctx[pairContextKey(pair)] = context{
-		localUsername:  "LFRAG",
-		remoteUsername: "RFRAG",
-		remotePassword: "RPASS",
-		localPassword:  "LPASS",
-		stun:           stunAgent,
-	}
-	t.Run("OK", func(t *testing.T) {
+		}
 		t.Run("Controlling", func(t *testing.T) {
+			stunAgent.do = func(m *stun.Message, f func(stun.Event)) error {
+				checkCredentials(t, m)
+				var (
+					rControlling AttrControlling
+					rControlled  AttrControlled
+				)
+				if rControlled.GetFrom(m) == nil {
+					t.Error("unexpected controlled attribute")
+				}
+				if err := rControlling.GetFrom(m); err != nil {
+					t.Error(err)
+				}
+				if rControlling != 5721121980023635282 {
+					t.Errorf("unexpected tie-breaker: %d", rControlling)
+				}
+				f(stun.Event{Message: stun.MustBuild(m, stun.BindingSuccess, integrity, stun.Fingerprint)})
+				return nil
+			}
 			if err := a.check(pair); err != nil {
 				t.Fatal("failed to check", err)
 			}
@@ -119,6 +122,7 @@ func TestAgent_check(t *testing.T) {
 		t.Run("Controlled", func(t *testing.T) {
 			a.role = Controlled
 			stunAgent.do = func(m *stun.Message, f func(stun.Event)) error {
+				checkCredentials(t, m)
 				var (
 					rControlling AttrControlling
 					rControlled  AttrControlled
