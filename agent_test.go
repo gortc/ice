@@ -111,9 +111,34 @@ func TestAgent_check(t *testing.T) {
 		stun:           stunAgent,
 	}
 	t.Run("OK", func(t *testing.T) {
-		if err := a.check(pair); err != nil {
-			t.Fatal("failed to check", err)
-		}
+		t.Run("Controlling", func(t *testing.T) {
+			if err := a.check(pair); err != nil {
+				t.Fatal("failed to check", err)
+			}
+		})
+		t.Run("Controlled", func(t *testing.T) {
+			a.role = Controlled
+			stunAgent.do = func(m *stun.Message, f func(stun.Event)) error {
+				var (
+					rControlling AttrControlling
+					rControlled  AttrControlled
+				)
+				if rControlling.GetFrom(m) == nil {
+					t.Error("unexpected controlled attribute")
+				}
+				if err := rControlled.GetFrom(m); err != nil {
+					t.Error(err)
+				}
+				if rControlled != 5721121980023635282 {
+					t.Errorf("unexpected tie-breaker: %d", rControlled)
+				}
+				f(stun.Event{Message: stun.MustBuild(m, stun.BindingSuccess, integrity, stun.Fingerprint)})
+				return nil
+			}
+			if err := a.check(pair); err != nil {
+				t.Fatal("failed to check", err)
+			}
+		})
 	})
 	t.Run("STUN Agent failure", func(t *testing.T) {
 		stunErr := errors.New("failed")
