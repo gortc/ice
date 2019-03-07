@@ -1,6 +1,7 @@
 package ice
 
 import (
+	"errors"
 	"math/rand"
 	"net"
 	"sort"
@@ -72,45 +73,81 @@ func TestAgent_check(t *testing.T) {
 	a.updateState()
 	t.Logf("state: %s", a.state)
 	pair := &a.set[0].Pairs[0]
+	stunAgent := &stunMock{
+		do: func(m *stun.Message, f func(stun.Event)) error {
+			i := stun.NewShortTermIntegrity("RPASS")
+			if err := i.Check(m); err != nil {
+				t.Errorf("failed to check integrity: %v", err)
+			}
+			var u stun.Username
+			if err := u.GetFrom(m); err != nil {
+				t.Errorf("failed to get username: %v", err)
+			}
+			if u.String() != "RFRAG:LFRAG" {
+				t.Errorf("unexpected username: %s", u)
+			}
+			var (
+				rControlling AttrControlling
+				rControlled  AttrControlled
+			)
+			if rControlled.GetFrom(m) == nil {
+				t.Error("unexpected controlled attribute")
+			}
+			if err := rControlling.GetFrom(m); err != nil {
+				t.Error(err)
+			}
+			if rControlling != 5721121980023635282 {
+				t.Errorf("unexpected tie-breaker: %d", rControlling)
+			}
+			f(stun.Event{Message: stun.MustBuild(m, stun.BindingSuccess, i, stun.Fingerprint)})
+			return nil
+		},
+	}
 	a.ctx[pairContextKey(pair)] = context{
 		localUsername:  "LFRAG",
 		remoteUsername: "RFRAG",
 		remotePassword: "RPASS",
 		localPassword:  "LPASS",
-		stun: stunMock{
-			do: func(m *stun.Message, f func(stun.Event)) error {
-				i := stun.NewShortTermIntegrity("RPASS")
-				if err := i.Check(m); err != nil {
-					t.Errorf("failed to check integrity: %v", err)
-				}
-				var u stun.Username
-				if err := u.GetFrom(m); err != nil {
-					t.Errorf("failed to get username: %v", err)
-				}
-				if u.String() != "RFRAG:LFRAG" {
-					t.Errorf("unexpected username: %s", u)
-				}
-				var (
-					rControlling AttrControlling
-					rControlled  AttrControlled
-				)
-				if rControlled.GetFrom(m) == nil {
-					t.Error("unexpected controlled attribute")
-				}
-				if err := rControlling.GetFrom(m); err != nil {
-					t.Error(err)
-				}
-				if rControlling != 5721121980023635282 {
-					t.Errorf("unexpected tie-breaker: %d", rControlling)
-				}
-				f(stun.Event{Message: stun.MustBuild(m, stun.BindingSuccess, i, stun.Fingerprint)})
-				return nil
-			},
-		},
+		stun:           stunAgent,
 	}
-	if err := a.check(pair); err != nil {
-		t.Fatal("failed to check", err)
-	}
+	t.Run("OK", func(t *testing.T) {
+		if err := a.check(pair); err != nil {
+			t.Fatal("failed to check", err)
+		}
+	})
+	t.Run("STUN Agent failure", func(t *testing.T) {
+		stunErr := errors.New("failed")
+		stunAgent.do = func(m *stun.Message, f func(stun.Event)) error {
+			return stunErr
+		}
+		if err := a.check(pair); err != stunErr {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+	t.Run("STUN Event error", func(t *testing.T) {
+		stunErr := errors.New("failed")
+		stunAgent.do = func(m *stun.Message, f func(stun.Event)) error {
+			f(stun.Event{
+				Error: stunErr,
+			})
+			return nil
+		}
+		if err := a.check(pair); err != stunErr {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+	t.Run("STUN Unrecoverable error", func(t *testing.T) {
+		stunAgent.do = func(m *stun.Message, f func(stun.Event)) error {
+			i := stun.NewShortTermIntegrity("RPASS")
+			f(stun.Event{
+				Message: stun.MustBuild(m, stun.BindingError, stun.CodeBadRequest, i, stun.Fingerprint),
+			})
+			return nil
+		}
+		if err := a.check(pair); err == nil {
+			t.Fatalf("unexpected success")
+		}
+	})
 }
 
 func TestAgentAPI(t *testing.T) {
