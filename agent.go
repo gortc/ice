@@ -2,8 +2,11 @@ package ice
 
 import (
 	"bytes"
+	"crypto/rand"
+	"encoding/binary"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 
 	"github.com/gortc/stun"
@@ -66,8 +69,10 @@ type Agent struct {
 	set         ChecklistSet
 	foundations [][]byte
 	ctx         map[contextKey]context
+	tieBreaker  uint64
 	role        Role
 	state       State
+	rand        io.Reader
 }
 
 type ctxSTUNClient interface {
@@ -138,10 +143,9 @@ func (a *Agent) check(p *Pair) error {
 	// local candidate, but with the candidate type preference of peer-
 	// reflexive candidates.
 	priority := PriorityAttr(p.Local.Priority) // TODO(ar): compute as peer-reflexive
-	const tieBreakerValue = 124
-	var tieBreakerAttr stun.Setter = AttrControlling(tieBreakerValue)
+	var tieBreakerAttr stun.Setter = AttrControlling(a.tieBreaker)
 	if a.role == Controlled {
-		tieBreakerAttr = AttrControlled(tieBreakerValue)
+		tieBreakerAttr = AttrControlled(a.tieBreaker)
 	}
 	m := stun.MustBuild(stun.TransactionID, stun.BindingRequest,
 		stun.NewUsername(ctx.remoteUsername+":"+ctx.localUsername), priority, tieBreakerAttr,
@@ -179,11 +183,29 @@ func (a *Agent) check(p *Pair) error {
 	return nil
 }
 
+func randUint64(r io.Reader) (uint64, error) {
+	buf := make([]byte, 8)
+	_, err := io.ReadFull(r, buf)
+	if err != nil {
+		return 0, err
+	}
+	return binary.LittleEndian.Uint64(buf), nil
+}
+
 // init sets initial states for checklist sets.
-func (a *Agent) init() {
+func (a *Agent) init() error {
+	if a.rand == nil {
+		a.rand = rand.Reader
+	}
 	if a.ctx == nil {
 		a.ctx = make(map[contextKey]context)
 	}
+	// Generating random tie-breaker number.
+	tbValue, err := randUint64(a.rand)
+	if err != nil {
+		return err
+	}
+	a.tieBreaker = tbValue
 	// Gathering all unique foundations.
 	foundations := make(map[foundationKey]struct{})
 	for _, c := range a.set {
@@ -220,4 +242,5 @@ func (a *Agent) init() {
 			}
 		}
 	}
+	return nil
 }

@@ -1,6 +1,7 @@
 package ice
 
 import (
+	"math/rand"
 	"net"
 	"sort"
 	"testing"
@@ -57,7 +58,17 @@ func TestAgent_check(t *testing.T) {
 	var c Checklist
 	loadGoldenJSON(t, &c, "checklist.json")
 	a.set = append(a.set, c)
-	a.init()
+	randSource := rand.NewSource(1)
+	a.rand = rand.New(randSource)
+	if err := a.init(); err != nil {
+		t.Fatal(err)
+	}
+	if a.tieBreaker != 5721121980023635282 {
+		t.Fatal(a.tieBreaker)
+	}
+	if a.role != Controlling {
+		t.Fatal("bad role")
+	}
 	a.updateState()
 	t.Logf("state: %s", a.state)
 	pair := &a.set[0].Pairs[0]
@@ -78,6 +89,19 @@ func TestAgent_check(t *testing.T) {
 				}
 				if u.String() != "RFRAG:LFRAG" {
 					t.Errorf("unexpected username: %s", u)
+				}
+				var (
+					rControlling AttrControlling
+					rControlled  AttrControlled
+				)
+				if rControlled.GetFrom(m) == nil {
+					t.Error("unexpected controlled attribute")
+				}
+				if err := rControlling.GetFrom(m); err != nil {
+					t.Error(err)
+				}
+				if rControlling != 5721121980023635282 {
+					t.Errorf("unexpected tie-breaker: %d", rControlling)
 				}
 				f(stun.Event{Message: stun.MustBuild(m, stun.BindingSuccess, i, stun.Fingerprint)})
 				return nil
@@ -204,7 +228,9 @@ func TestAgent_init(t *testing.T) {
 	var c Checklist
 	loadGoldenJSON(t, &c, "checklist.json")
 	a.set = append(a.set, c)
-	a.init()
+	if err := a.init(); err != nil {
+		t.Fatal(err)
+	}
 	a.updateState()
 	t.Logf("state: %s", a.state)
 	if *writeGolden {
