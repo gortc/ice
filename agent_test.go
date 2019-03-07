@@ -60,16 +60,8 @@ func TestAgent_check(t *testing.T) {
 	a.init()
 	a.updateState()
 	t.Logf("state: %s", a.state)
-	if *writeGolden {
-		saveGoldenJSON(t, a.set[0], "checklist_updated.json")
-	}
-	var cGolden Checklist
-	loadGoldenJSON(t, &cGolden, "checklist_updated.json")
-	if !cGolden.Equal(a.set[0]) {
-		t.Error("got unexpected checklist after init")
-	}
-	pair := a.set[0].Pairs[0]
-	a.ctx[pairContextKey(&pair)] = context{
+	pair := &a.set[0].Pairs[0]
+	a.ctx[pairContextKey(pair)] = context{
 		localUsername:  "LFRAG",
 		remoteUsername: "RFRAG",
 		remotePassword: "RPASS",
@@ -92,7 +84,7 @@ func TestAgent_check(t *testing.T) {
 			},
 		},
 	}
-	if err := a.check(&pair); err != nil {
+	if err := a.check(pair); err != nil {
 		t.Fatal("failed to check", err)
 	}
 }
