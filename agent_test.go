@@ -201,6 +201,18 @@ func TestAgent_check(t *testing.T) {
 			t.Fatalf("unexpected error: %v", err)
 		}
 	})
+	t.Run("STUN Wrong response message type", func(t *testing.T) {
+		stunAgent.do = func(m *stun.Message, f func(stun.Event)) error {
+			f(stun.Event{
+				Message: stun.MustBuild(m, stun.BindingRequest, stun.CodeBadRequest, integrity, stun.Fingerprint),
+			})
+			return nil
+		}
+		typeErr := unexpectedResponseTypeErr{Type: stun.BindingRequest}
+		if err := a.check(pair); err != typeErr {
+			t.Fatalf("unexpected success")
+		}
+	})
 }
 
 func TestAgentAPI(t *testing.T) {

@@ -139,6 +139,14 @@ var (
 	errRoleConflict        = errors.New("role conflict")
 )
 
+type unexpectedResponseTypeErr struct {
+	Type stun.MessageType
+}
+
+func (e unexpectedResponseTypeErr) Error() string {
+	return fmt.Sprintf("peer responded with unexpected STUN message %s", e.Type)
+}
+
 // check performs connectivity check for pair.
 func (a *Agent) check(p *Pair) error {
 	// Once the agent has picked a candidate pair for which a connectivity
@@ -195,7 +203,7 @@ func (a *Agent) check(p *Pair) error {
 			return
 		}
 		if event.Message.Type != stun.BindingSuccess {
-			bindingErr = fmt.Errorf("bad responce message type: %s", event.Message.Type)
+			bindingErr = unexpectedResponseTypeErr{Type: event.Message.Type}
 			return
 		}
 	})
