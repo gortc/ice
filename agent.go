@@ -155,7 +155,7 @@ func (a *Agent) check(p *Pair) error {
 		}
 		if event.Message.Type == stun.BindingError {
 			var errCode stun.ErrorCodeAttribute
-			if bindingErr := errCode.GetFrom(m); bindingErr != nil {
+			if bindingErr = errCode.GetFrom(m); bindingErr != nil {
 				return
 			}
 			if errCode.Code == stun.CodeRoleConflict {
