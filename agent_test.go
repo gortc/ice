@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/gortc/ice/candidate"
+	"github.com/gortc/stun"
 )
 
 func newUDPCandidate(t *testing.T, addr HostAddr) (Candidate, func()) {
@@ -43,6 +44,57 @@ func newUDPCandidate(t *testing.T, addr HostAddr) (Candidate, func()) {
 		addr.LocalPreference, c.ComponentID,
 	)
 	return c, f
+}
+
+type stunMock struct {
+	do func(m *stun.Message, f func(stun.Event)) error
+}
+
+func (s stunMock) Do(m *stun.Message, f func(stun.Event)) error { return s.do(m, f) }
+
+func TestAgent_check(t *testing.T) {
+	a := Agent{}
+	var c Checklist
+	loadGoldenJSON(t, &c, "checklist.json")
+	a.set = append(a.set, c)
+	a.init()
+	a.updateState()
+	t.Logf("state: %s", a.state)
+	if *writeGolden {
+		saveGoldenJSON(t, a.set[0], "checklist_updated.json")
+	}
+	var cGolden Checklist
+	loadGoldenJSON(t, &cGolden, "checklist_updated.json")
+	if !cGolden.Equal(a.set[0]) {
+		t.Error("got unexpected checklist after init")
+	}
+	pair := a.set[0].Pairs[0]
+	a.ctx[pairContextKey(&pair)] = context{
+		localUsername:  "LFRAG",
+		remoteUsername: "RFRAG",
+		remotePassword: "RPASS",
+		localPassword:  "LPASS",
+		stun: stunMock{
+			do: func(m *stun.Message, f func(stun.Event)) error {
+				i := stun.NewShortTermIntegrity("RPASS")
+				if err := i.Check(m); err != nil {
+					t.Errorf("failed to check integrity: %v", err)
+				}
+				var u stun.Username
+				if err := u.GetFrom(m); err != nil {
+					t.Errorf("failed to get username: %v", err)
+				}
+				if u.String() != "RFRAG:LFRAG" {
+					t.Errorf("unexpected username: %s", u)
+				}
+				f(stun.Event{Message: stun.MustBuild(m, stun.BindingSuccess, i, stun.Fingerprint)})
+				return nil
+			},
+		},
+	}
+	if err := a.check(&pair); err != nil {
+		t.Fatal("failed to check", err)
+	}
 }
 
 func TestAgentAPI(t *testing.T) {
