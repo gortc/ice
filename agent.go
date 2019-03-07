@@ -134,6 +134,8 @@ func pairContextKey(p *Pair) contextKey {
 	return k
 }
 
+var errFingerprintNotFound = errors.New("STUN message fingerprint attribute not found")
+
 // check performs connectivity check for pair.
 func (a *Agent) check(p *Pair) error {
 	// Once the agent has picked a candidate pair for which a connectivity
@@ -163,9 +165,23 @@ func (a *Agent) check(p *Pair) error {
 			bindingErr = event.Error
 			return
 		}
+		if err := integrity.Check(event.Message); err != nil {
+			bindingErr = err
+			return
+		}
+		switch err := stun.Fingerprint.Check(event.Message); err {
+		case stun.ErrAttributeNotFound:
+			bindingErr = errFingerprintNotFound
+			return
+		case nil:
+			// OK.
+		default:
+			bindingErr = err
+			return
+		}
 		if event.Message.Type == stun.BindingError {
 			var errCode stun.ErrorCodeAttribute
-			if bindingErr = errCode.GetFrom(m); bindingErr != nil {
+			if bindingErr = errCode.GetFrom(event.Message); bindingErr != nil {
 				return
 			}
 			if errCode.Code == stun.CodeRoleConflict {

@@ -52,7 +52,7 @@ type stunMock struct {
 	do func(m *stun.Message, f func(stun.Event)) error
 }
 
-func (s stunMock) Do(m *stun.Message, f func(stun.Event)) error { return s.do(m, f) }
+func (s *stunMock) Do(m *stun.Message, f func(stun.Event)) error { return s.do(m, f) }
 
 func TestAgent_check(t *testing.T) {
 	a := Agent{}
@@ -146,6 +146,40 @@ func TestAgent_check(t *testing.T) {
 		}
 		if err := a.check(pair); err == nil {
 			t.Fatalf("unexpected success")
+		}
+	})
+	t.Run("STUN Integrity error", func(t *testing.T) {
+		stunAgent.do = func(m *stun.Message, f func(stun.Event)) error {
+			i := stun.NewShortTermIntegrity("RPASS+BAD")
+			response := stun.MustBuild(m, stun.BindingSuccess, i, stun.Fingerprint)
+			f(stun.Event{Message: response})
+			return nil
+		}
+		if err := a.check(pair); err != stun.ErrIntegrityMismatch {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+	t.Run("STUN No fingerprint", func(t *testing.T) {
+		stunAgent.do = func(m *stun.Message, f func(stun.Event)) error {
+			i := stun.NewShortTermIntegrity("RPASS")
+			response := stun.MustBuild(m, stun.BindingSuccess, i)
+			f(stun.Event{Message: response})
+			return nil
+		}
+		if err := a.check(pair); err != errFingerprintNotFound {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+	t.Run("STUN Bad fingerprint", func(t *testing.T) {
+		stunAgent.do = func(m *stun.Message, f func(stun.Event)) error {
+			i := stun.NewShortTermIntegrity("RPASS")
+			badFP := stun.RawAttribute{Type: stun.AttrFingerprint, Value: []byte{'b', 'a', 'd', 0}}
+			response := stun.MustBuild(m, stun.BindingSuccess, i, badFP)
+			f(stun.Event{Message: response})
+			return nil
+		}
+		if err := a.check(pair); err != stun.ErrFingerprintMismatch {
+			t.Fatalf("unexpected error: %v", err)
 		}
 	})
 }
