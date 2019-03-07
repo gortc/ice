@@ -134,7 +134,10 @@ func pairContextKey(p *Pair) contextKey {
 	return k
 }
 
-var errFingerprintNotFound = errors.New("STUN message fingerprint attribute not found")
+var (
+	errFingerprintNotFound = errors.New("STUN message fingerprint attribute not found")
+	errRoleConflict        = errors.New("role conflict")
+)
 
 // check performs connectivity check for pair.
 func (a *Agent) check(p *Pair) error {
@@ -185,7 +188,7 @@ func (a *Agent) check(p *Pair) error {
 				return
 			}
 			if errCode.Code == stun.CodeRoleConflict {
-				bindingErr = errors.New("role conflict")
+				bindingErr = errRoleConflict
 				return
 			}
 			bindingErr = fmt.Errorf("error %s", errCode)

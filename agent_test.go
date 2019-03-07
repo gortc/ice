@@ -73,10 +73,10 @@ func TestAgent_check(t *testing.T) {
 	a.updateState()
 	t.Logf("state: %s", a.state)
 	pair := &a.set[0].Pairs[0]
+	integrity := stun.NewShortTermIntegrity("RPASS")
 	stunAgent := &stunMock{
 		do: func(m *stun.Message, f func(stun.Event)) error {
-			i := stun.NewShortTermIntegrity("RPASS")
-			if err := i.Check(m); err != nil {
+			if err := integrity.Check(m); err != nil {
 				t.Errorf("failed to check integrity: %v", err)
 			}
 			var u stun.Username
@@ -99,7 +99,7 @@ func TestAgent_check(t *testing.T) {
 			if rControlling != 5721121980023635282 {
 				t.Errorf("unexpected tie-breaker: %d", rControlling)
 			}
-			f(stun.Event{Message: stun.MustBuild(m, stun.BindingSuccess, i, stun.Fingerprint)})
+			f(stun.Event{Message: stun.MustBuild(m, stun.BindingSuccess, integrity, stun.Fingerprint)})
 			return nil
 		},
 	}
@@ -138,14 +138,35 @@ func TestAgent_check(t *testing.T) {
 	})
 	t.Run("STUN Unrecoverable error", func(t *testing.T) {
 		stunAgent.do = func(m *stun.Message, f func(stun.Event)) error {
-			i := stun.NewShortTermIntegrity("RPASS")
 			f(stun.Event{
-				Message: stun.MustBuild(m, stun.BindingError, stun.CodeBadRequest, i, stun.Fingerprint),
+				Message: stun.MustBuild(m, stun.BindingError, stun.CodeBadRequest, integrity, stun.Fingerprint),
 			})
 			return nil
 		}
 		if err := a.check(pair); err == nil {
 			t.Fatalf("unexpected success")
+		}
+	})
+	t.Run("STUN Error response without code", func(t *testing.T) {
+		stunAgent.do = func(m *stun.Message, f func(stun.Event)) error {
+			f(stun.Event{
+				Message: stun.MustBuild(m, stun.BindingError, integrity, stun.Fingerprint),
+			})
+			return nil
+		}
+		if err := a.check(pair); err == nil {
+			t.Fatalf("unexpected success")
+		}
+	})
+	t.Run("STUN Role conflict", func(t *testing.T) {
+		stunAgent.do = func(m *stun.Message, f func(stun.Event)) error {
+			f(stun.Event{
+				Message: stun.MustBuild(m, stun.BindingError, stun.CodeRoleConflict, integrity, stun.Fingerprint),
+			})
+			return nil
+		}
+		if err := a.check(pair); err != errRoleConflict {
+			t.Fatalf("unexpected error: %v", err)
 		}
 	})
 	t.Run("STUN Integrity error", func(t *testing.T) {
@@ -161,8 +182,7 @@ func TestAgent_check(t *testing.T) {
 	})
 	t.Run("STUN No fingerprint", func(t *testing.T) {
 		stunAgent.do = func(m *stun.Message, f func(stun.Event)) error {
-			i := stun.NewShortTermIntegrity("RPASS")
-			response := stun.MustBuild(m, stun.BindingSuccess, i)
+			response := stun.MustBuild(m, stun.BindingSuccess, integrity)
 			f(stun.Event{Message: response})
 			return nil
 		}
@@ -172,9 +192,8 @@ func TestAgent_check(t *testing.T) {
 	})
 	t.Run("STUN Bad fingerprint", func(t *testing.T) {
 		stunAgent.do = func(m *stun.Message, f func(stun.Event)) error {
-			i := stun.NewShortTermIntegrity("RPASS")
 			badFP := stun.RawAttribute{Type: stun.AttrFingerprint, Value: []byte{'b', 'a', 'd', 0}}
-			response := stun.MustBuild(m, stun.BindingSuccess, i, badFP)
+			response := stun.MustBuild(m, stun.BindingSuccess, integrity, badFP)
 			f(stun.Event{Message: response})
 			return nil
 		}
