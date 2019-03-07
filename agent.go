@@ -144,7 +144,7 @@ func (a *Agent) check(p *Pair) error {
 		tieBreakerAttr = AttrControlled(tieBreakerValue)
 	}
 	m := stun.MustBuild(stun.TransactionID, stun.BindingRequest,
-		stun.NewUsername(ctx.remoteUsername+ctx.localUsername), priority, tieBreakerAttr,
+		stun.NewUsername(ctx.remoteUsername+":"+ctx.localUsername), priority, tieBreakerAttr,
 		integrity, stun.Fingerprint,
 	)
 	var bindingErr error
