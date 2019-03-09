@@ -214,6 +214,19 @@ func (a *Agent) check(p *Pair) error {
 			bindingErr = unexpectedResponseTypeErr{Type: event.Message.Type}
 			return
 		}
+		var xAddr stun.XORMappedAddress
+		if err := xAddr.GetFrom(event.Message); err != nil {
+			bindingErr = fmt.Errorf("can't get xor mapped address: %v", err)
+		}
+		addr := Addr{
+			IP:    xAddr.IP,
+			Port:  xAddr.Port,
+			Proto: p.Local.Addr.Proto,
+		}
+		// TODO: Check all other local addresses.
+		if !addr.Equal(p.Local.Addr) {
+			// TODO: Add ass peer-reflexive.
+		}
 	})
 	if doErr != nil {
 		return doErr

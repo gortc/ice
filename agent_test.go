@@ -72,6 +72,10 @@ func TestAgent_check(t *testing.T) {
 	pair := &a.set[0].Pairs[0]
 	integrity := stun.NewShortTermIntegrity("RPASS")
 	stunAgent := &stunMock{}
+	xorAddr := &stun.XORMappedAddress{
+		IP:   pair.Local.Addr.IP,
+		Port: pair.Local.Addr.Port,
+	}
 	a.ctx[pairContextKey(pair)] = context{
 		localUsername:  "LFRAG",
 		remoteUsername: "RFRAG",
@@ -117,7 +121,7 @@ func TestAgent_check(t *testing.T) {
 				if rControlling != 5721121980023635282 {
 					t.Errorf("unexpected tie-breaker: %d", rControlling)
 				}
-				f(stun.Event{Message: stun.MustBuild(m, stun.BindingSuccess, integrity, stun.Fingerprint)})
+				f(stun.Event{Message: stun.MustBuild(m, stun.BindingSuccess, xorAddr, integrity, stun.Fingerprint)})
 				return nil
 			}
 			if err := a.check(pair); err != nil {
@@ -141,7 +145,7 @@ func TestAgent_check(t *testing.T) {
 				if rControlled != 5721121980023635282 {
 					t.Errorf("unexpected tie-breaker: %d", rControlled)
 				}
-				f(stun.Event{Message: stun.MustBuild(m, stun.BindingSuccess, integrity, stun.Fingerprint)})
+				f(stun.Event{Message: stun.MustBuild(m, stun.BindingSuccess, xorAddr, integrity, stun.Fingerprint)})
 				return nil
 			}
 			if err := a.check(pair); err != nil {
@@ -196,7 +200,7 @@ func TestAgent_check(t *testing.T) {
 	t.Run("STUN Role conflict", func(t *testing.T) {
 		stunAgent.do = func(m *stun.Message, f func(stun.Event)) error {
 			f(stun.Event{
-				Message: stun.MustBuild(m, stun.BindingError, stun.CodeRoleConflict, integrity, stun.Fingerprint),
+				Message: stun.MustBuild(m, stun.BindingError, stun.CodeRoleConflict, xorAddr, integrity, stun.Fingerprint),
 			})
 			return nil
 		}
@@ -207,7 +211,7 @@ func TestAgent_check(t *testing.T) {
 	t.Run("STUN Integrity error", func(t *testing.T) {
 		stunAgent.do = func(m *stun.Message, f func(stun.Event)) error {
 			i := stun.NewShortTermIntegrity("RPASS+BAD")
-			response := stun.MustBuild(m, stun.BindingSuccess, i, stun.Fingerprint)
+			response := stun.MustBuild(m, stun.BindingSuccess, i, xorAddr, stun.Fingerprint)
 			f(stun.Event{Message: response})
 			return nil
 		}
