@@ -461,6 +461,35 @@ func TestAgent_pickPair(t *testing.T) {
 	}
 }
 
+func BenchmarkAgent_pickPair(b *testing.B) {
+	a := &Agent{
+		set: ChecklistSet{{
+			Pairs: Pairs{
+				{
+					Foundation: []byte{1, 2, 3, 100, 31, 22},
+				},
+			},
+		}},
+	}
+	if err := a.init(); err != nil {
+		b.Fatal(err)
+	}
+	_, checklist := a.nextChecklist()
+	if checklist == noChecklist {
+		b.Fatal("no checklist")
+	}
+	a.checklist = checklist
+
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		id, err := a.pickPair()
+		if err != nil {
+			b.Fatal(errNoPair)
+		}
+		a.setPairState(a.checklist, id, PairWaiting)
+	}
+}
+
 func TestAgent_updateState(t *testing.T) {
 	for _, tc := range []struct {
 		Name  string

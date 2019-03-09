@@ -400,5 +400,6 @@ func (a *Agent) init() error {
 			}
 		}
 	}
+	a.checklist = noChecklist
 	return nil
 }
