@@ -267,10 +267,6 @@ type candidateAndConn struct {
 	Conn      net.PacketConn
 }
 
-func (c candidateAndConn) Close() error {
-	return c.Conn.Close()
-}
-
 func TestAgentAPI(t *testing.T) {
 	// 0) Gather interfaces.
 	addr, err := Gather()
@@ -296,7 +292,7 @@ func TestAgentAPI(t *testing.T) {
 	var local, remote Candidates
 	for _, a := range hostAddr {
 		l, r := newUDPCandidate(t, a), newUDPCandidate(t, a)
-		toClose = append(toClose, l, r)
+		toClose = append(toClose, l.Conn, r.Conn)
 		local = append(local, l.Candidate)
 		remote = append(remote, r.Candidate)
 	}
