@@ -67,9 +67,12 @@ type ChecklistSet []Checklist
 
 const maxFoundationLength = 64
 
+const noChecklist = -1
+
 // Agent implements ICE Agent.
 type Agent struct {
 	set         ChecklistSet
+	checklist   int // index in set or -1
 	foundations [][]byte
 	ctx         map[contextKey]context
 	tieBreaker  uint64
@@ -246,6 +249,32 @@ func randUint64(r io.Reader) (uint64, error) {
 		return 0, err
 	}
 	return binary.LittleEndian.Uint64(buf), nil
+}
+
+func (a *Agent) nextChecklist() (c Checklist, id int) {
+	if a.checklist == noChecklist {
+		for id, c = range a.set {
+			if c.State == ChecklistRunning {
+				return c, id
+			}
+		}
+		return Checklist{}, noChecklist
+	}
+	// Picking checklist
+	i := a.checklist + 1
+	for {
+		if i >= len(a.set) {
+			i = 0
+		}
+		if a.set[i].State == ChecklistRunning {
+			return a.set[i], i
+		}
+		if i == a.checklist {
+			// Made a circle, nothing found.
+			return Checklist{}, noChecklist
+		}
+		i++
+	}
 }
 
 // init sets initial states for checklist sets.

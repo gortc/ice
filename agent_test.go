@@ -317,6 +317,65 @@ func TestAgentAPI(t *testing.T) {
 	}
 }
 
+func TestAgent_nextChecklist(t *testing.T) {
+	for _, tc := range []struct {
+		Name    string
+		Set     ChecklistSet
+		ID      int
+		Current int
+	}{
+		{
+			Name:    "blank",
+			ID:      noChecklist,
+			Current: noChecklist,
+		},
+		{
+			Name:    "first",
+			Set:     ChecklistSet{{}},
+			ID:      0,
+			Current: noChecklist,
+		},
+		{
+			Name:    "no running",
+			Set:     ChecklistSet{{State: ChecklistFailed}},
+			ID:      noChecklist,
+			Current: noChecklist,
+		},
+		{
+			Name:    "second",
+			Set:     ChecklistSet{{}, {}},
+			ID:      1,
+			Current: 0,
+		},
+		{
+			Name:    "second running",
+			Set:     ChecklistSet{{}, {State: ChecklistFailed}, {}},
+			ID:      2,
+			Current: 0,
+		},
+		{
+			Name:    "circle",
+			Set:     ChecklistSet{{}, {State: ChecklistFailed}, {}},
+			ID:      0,
+			Current: 2,
+		},
+		{
+			Name:    "circle without running",
+			Set:     ChecklistSet{{State: ChecklistFailed}, {State: ChecklistFailed}},
+			ID:      noChecklist,
+			Current: 1,
+		},
+	} {
+		t.Run(tc.Name, func(t *testing.T) {
+			a := &Agent{set: tc.Set, checklist: tc.Current}
+			_, id := a.nextChecklist()
+			if id != tc.ID {
+				t.Errorf("nextChecklist %d (got) != %d (expected)", id, tc.ID)
+			}
+		})
+	}
+}
+
 func TestAgent_updateState(t *testing.T) {
 	for _, tc := range []struct {
 		Name  string
