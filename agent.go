@@ -208,7 +208,6 @@ func (a *Agent) pickPair() (pairID int, err error) {
 		}
 	}
 	if !anyWaiting {
-		// No pairs in waiting state.
 		foundations := make(foundationSet)
 		for _, checklist := range a.set {
 			for id := range checklist.Pairs {
@@ -225,7 +224,7 @@ func (a *Agent) pickPair() (pairID int, err error) {
 				continue
 			}
 			a.setPairState(a.checklist, id, PairWaiting)
-			break
+			break // to step 3
 		}
 	}
 	// Step 3. Looking for waiting pairs.
