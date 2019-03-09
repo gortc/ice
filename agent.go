@@ -153,6 +153,55 @@ func (e unrecoverableErrorCodeErr) Error() string {
 	return fmt.Sprintf("peer responded with unrecoverable error code %d", e.Code)
 }
 
+func (a *Agent) addPeerReflexive(p *Pair, addr Addr) error {
+	// TODO: Implement.
+	return nil
+}
+
+func (a *Agent) processBindingResponse(p *Pair, integrity stun.MessageIntegrity, e stun.Event) error {
+	if e.Error != nil {
+		return e.Error
+	}
+	if err := stun.Fingerprint.Check(e.Message); err != nil {
+		if err == stun.ErrAttributeNotFound {
+			return errFingerprintNotFound
+		}
+		return err
+	}
+	if err := integrity.Check(e.Message); err != nil {
+		return err
+	}
+	if e.Message.Type == stun.BindingError {
+		var errCode stun.ErrorCodeAttribute
+		if err := errCode.GetFrom(e.Message); err != nil {
+			return err
+		}
+		if errCode.Code == stun.CodeRoleConflict {
+			return errRoleConflict
+		}
+		return unrecoverableErrorCodeErr{Code: errCode.Code}
+	}
+	if e.Message.Type != stun.BindingSuccess {
+		return unexpectedResponseTypeErr{Type: e.Message.Type}
+	}
+	var xAddr stun.XORMappedAddress
+	if err := xAddr.GetFrom(e.Message); err != nil {
+		return fmt.Errorf("can't get xor mapped address: %v", err)
+	}
+	addr := Addr{
+		IP:    xAddr.IP,
+		Port:  xAddr.Port,
+		Proto: p.Local.Addr.Proto,
+	}
+	// TODO: Check all other local addresses.
+	if !addr.Equal(p.Local.Addr) {
+		if err := a.addPeerReflexive(p, addr); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // check performs connectivity check for pair.
 func (a *Agent) check(p *Pair) error {
 	// Once the agent has picked a candidate pair for which a connectivity
@@ -179,55 +228,7 @@ func (a *Agent) check(p *Pair) error {
 	)
 	var bindingErr error
 	// TODO(ar): Start instead of Do.
-	doErr := ctx.stun.Do(m, func(event stun.Event) {
-		if event.Error != nil {
-			bindingErr = event.Error
-			return
-		}
-		switch err := stun.Fingerprint.Check(event.Message); err {
-		case stun.ErrAttributeNotFound:
-			bindingErr = errFingerprintNotFound
-			return
-		case nil:
-			// OK.
-		default:
-			bindingErr = err
-			return
-		}
-		if err := integrity.Check(event.Message); err != nil {
-			bindingErr = err
-			return
-		}
-		if event.Message.Type == stun.BindingError {
-			var errCode stun.ErrorCodeAttribute
-			if bindingErr = errCode.GetFrom(event.Message); bindingErr != nil {
-				return
-			}
-			if errCode.Code == stun.CodeRoleConflict {
-				bindingErr = errRoleConflict
-				return
-			}
-			bindingErr = unrecoverableErrorCodeErr{Code: errCode.Code}
-			return
-		}
-		if event.Message.Type != stun.BindingSuccess {
-			bindingErr = unexpectedResponseTypeErr{Type: event.Message.Type}
-			return
-		}
-		var xAddr stun.XORMappedAddress
-		if err := xAddr.GetFrom(event.Message); err != nil {
-			bindingErr = fmt.Errorf("can't get xor mapped address: %v", err)
-		}
-		addr := Addr{
-			IP:    xAddr.IP,
-			Port:  xAddr.Port,
-			Proto: p.Local.Addr.Proto,
-		}
-		// TODO: Check all other local addresses.
-		if !addr.Equal(p.Local.Addr) {
-			// TODO: Add ass peer-reflexive.
-		}
-	})
+	doErr := ctx.stun.Do(m, func(e stun.Event) { bindingErr = a.processBindingResponse(p, integrity, e) })
 	if doErr != nil {
 		return doErr
 	}
