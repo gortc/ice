@@ -185,7 +185,7 @@ func TestChecklistState_String(t *testing.T) {
 		ChecklistRunning, ChecklistCompleted, ChecklistFailed,
 	} {
 		if s.String() == "" {
-			t.Errorf("checlist iota %d should have String() value", int(s))
+			t.Errorf("checklist iota %d should have String() value", int(s))
 		}
 	}
 }
