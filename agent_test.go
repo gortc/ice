@@ -2,6 +2,7 @@ package ice
 
 import (
 	"errors"
+	"io"
 	"math/rand"
 	"net"
 	"sort"
@@ -11,7 +12,7 @@ import (
 	"github.com/gortc/stun"
 )
 
-func newUDPCandidate(t *testing.T, addr HostAddr) (Candidate, func()) {
+func newUDPCandidate(t *testing.T, addr HostAddr) candidateAndConn {
 	t.Helper()
 	zeroPort := net.UDPAddr{
 		IP:   addr.IP,
@@ -20,11 +21,6 @@ func newUDPCandidate(t *testing.T, addr HostAddr) (Candidate, func()) {
 	l, err := net.ListenPacket("udp", zeroPort.String())
 	if err != nil {
 		t.Fatal(err)
-	}
-	f := func() {
-		if cErr := l.Close(); cErr != nil {
-			t.Error(cErr)
-		}
 	}
 	a := l.LocalAddr().(*net.UDPAddr)
 	c := Candidate{
@@ -42,10 +38,11 @@ func newUDPCandidate(t *testing.T, addr HostAddr) (Candidate, func()) {
 		ComponentID: 1,
 	}
 	c.Foundation = Foundation(&c, Addr{})
-	c.Priority = Priority(TypePreference(c.Type),
-		addr.LocalPreference, c.ComponentID,
-	)
-	return c, f
+	c.Priority = Priority(TypePreference(c.Type), addr.LocalPreference, c.ComponentID)
+	return candidateAndConn{
+		Candidate: c,
+		Conn:      l,
+	}
 }
 
 type stunMock struct {
@@ -81,9 +78,10 @@ func TestAgent_check(t *testing.T) {
 		remotePassword: "RPASS",
 		localPassword:  "LPASS",
 		stun:           stunAgent,
+		localPref:      10,
 	}
 	t.Run("OK", func(t *testing.T) {
-		checkCredentials := func(t *testing.T, m *stun.Message) {
+		checkMessage := func(t *testing.T, m *stun.Message) {
 			t.Helper()
 			if err := integrity.Check(m); err != nil {
 				t.Errorf("failed to check integrity: %v", err)
@@ -95,10 +93,17 @@ func TestAgent_check(t *testing.T) {
 			if u.String() != "RFRAG:LFRAG" {
 				t.Errorf("unexpected username: %s", u)
 			}
+			var p PriorityAttr
+			if err := p.GetFrom(m); err != nil {
+				t.Error("failed to get priority attribute")
+			}
+			if p != 1845496575 {
+				t.Errorf("unexpected priority: %d", p)
+			}
 		}
 		t.Run("Controlling", func(t *testing.T) {
 			stunAgent.do = func(m *stun.Message, f func(stun.Event)) error {
-				checkCredentials(t, m)
+				checkMessage(t, m)
 				var (
 					rControlling AttrControlling
 					rControlled  AttrControlled
@@ -122,7 +127,7 @@ func TestAgent_check(t *testing.T) {
 		t.Run("Controlled", func(t *testing.T) {
 			a.role = Controlled
 			stunAgent.do = func(m *stun.Message, f func(stun.Event)) error {
-				checkCredentials(t, m)
+				checkMessage(t, m)
 				var (
 					rControlling AttrControlling
 					rControlled  AttrControlled
@@ -257,6 +262,15 @@ func TestAgent_check(t *testing.T) {
 	})
 }
 
+type candidateAndConn struct {
+	Candidate Candidate
+	Conn      net.PacketConn
+}
+
+func (c candidateAndConn) Close() error {
+	return c.Conn.Close()
+}
+
 func TestAgentAPI(t *testing.T) {
 	// 0) Gather interfaces.
 	addr, err := Gather()
@@ -271,20 +285,20 @@ func TestAgentAPI(t *testing.T) {
 	for _, a := range hostAddr {
 		t.Logf(" %s (%d)", a.IP, a.LocalPreference)
 	}
-	var toClose []func()
+	var toClose []io.Closer
 	defer func() {
 		for _, f := range toClose {
-			f()
+			if cErr := f.Close(); cErr != nil {
+				t.Error(cErr)
+			}
 		}
 	}()
 	var local, remote Candidates
 	for _, a := range hostAddr {
-		l, f := newUDPCandidate(t, a)
-		toClose = append(toClose, f)
-		local = append(local, l)
-		r, fRem := newUDPCandidate(t, a)
-		remote = append(remote, r)
-		toClose = append(toClose, fRem)
+		l, r := newUDPCandidate(t, a), newUDPCandidate(t, a)
+		toClose = append(toClose, l, r)
+		local = append(local, l.Candidate)
+		remote = append(remote, r.Candidate)
 	}
 	sort.Sort(local)
 	sort.Sort(remote)
