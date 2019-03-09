@@ -162,6 +162,82 @@ func (a *Agent) addPeerReflexive(p *Pair, addr Addr) error {
 	return nil
 }
 
+type foundationSet map[foundationKey]struct{}
+
+func getFoundationKey(f []byte) foundationKey {
+	k := foundationKey{}
+	copy(k[:], f)
+	return k
+}
+
+func (s foundationSet) Contains(f []byte) bool {
+	_, ok := s[getFoundationKey(f)]
+	return ok
+}
+
+func (s foundationSet) Add(f []byte) { s[getFoundationKey(f)] = struct{}{} }
+
+func (a *Agent) setPairState(checklist, pair int, state PairState) {
+	c := a.set[checklist]
+	p := c.Pairs[pair]
+	p.State = state
+	c.Pairs[pair] = p
+	a.set[checklist] = c
+}
+
+var (
+	errNoPair      = errors.New("no pair in checklist can be picked")
+	errNoChecklist = errors.New("no checklist is active")
+)
+
+const noPair = -1
+
+func (a *Agent) pickPair() (pairID int, err error) {
+	if a.checklist == noChecklist {
+		return noPair, errNoChecklist
+	}
+	// Step 1. Picking from triggered check queue.
+	// TODO: Implement triggered-check queue.
+	// Step 2. Handling frozen pairs.
+	pairs := a.set[a.checklist].Pairs
+	anyWaiting := false
+	for id := range pairs {
+		if pairs[id].State == PairWaiting {
+			anyWaiting = true
+			break
+		}
+	}
+	if !anyWaiting {
+		// No pairs in waiting state.
+		foundations := make(foundationSet)
+		for _, checklist := range a.set {
+			for id := range checklist.Pairs {
+				if checklist.Pairs[id].State.In(PairInProgress, PairWaiting) {
+					foundations.Add(checklist.Pairs[id].Foundation)
+				}
+			}
+		}
+		for id := range pairs {
+			if pairs[id].State != PairFrozen {
+				continue
+			}
+			if foundations.Contains(pairs[id].Foundation) {
+				continue
+			}
+			a.setPairState(a.checklist, id, PairWaiting)
+		}
+	}
+	// Step 3. Looking for waiting pairs.
+	for id := range pairs {
+		if pairs[id].State == PairWaiting {
+			a.setPairState(a.checklist, id, PairInProgress)
+			return id, nil
+		}
+	}
+	// Step 4. No check could be performed.
+	return noPair, errNoPair
+}
+
 func (a *Agent) processBindingResponse(p *Pair, integrity stun.MessageIntegrity, e stun.Event) error {
 	if e.Error != nil {
 		return e.Error
@@ -292,21 +368,18 @@ func (a *Agent) init() error {
 	}
 	a.tieBreaker = tbValue
 	// Gathering all unique foundations.
-	foundations := make(map[foundationKey]struct{})
+	foundations := make(foundationSet)
 	for _, c := range a.set {
 		for i := range c.Pairs {
-			// Initializing context.
-			k := pairContextKey(&c.Pairs[i])
-			a.ctx[k] = context{}
-
-			f := c.Pairs[i].Foundation
-			fKey := foundationKey{}
-			copy(fKey[:], f)
-			if _, ok := foundations[fKey]; ok {
+			pair := c.Pairs[i]
+			if foundations.Contains(pair.Foundation) {
 				continue
 			}
-			foundations[fKey] = struct{}{}
-			a.foundations = append(a.foundations, f)
+			// Initializing context.
+			k := pairContextKey(&pair)
+			a.ctx[k] = context{}
+			foundations.Add(pair.Foundation)
+			a.foundations = append(a.foundations, pair.Foundation)
 		}
 	}
 	// For each foundation, the agent sets the state of exactly one

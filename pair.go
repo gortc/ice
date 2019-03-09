@@ -66,6 +66,16 @@ func (p *Pair) Equal(b *Pair) bool {
 // PairState as defined in RFC 8445 Section 6.1.2.6.
 type PairState byte
 
+// In returns true if s in states list.
+func (s PairState) In(states ...PairState) bool {
+	for _, st := range states {
+		if st == s {
+			return true
+		}
+	}
+	return false
+}
+
 // UnmarshalText implements TextUnmarshaler.
 func (s *PairState) UnmarshalText(text []byte) error {
 	for k, v := range pairStateToStr {

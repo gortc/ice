@@ -376,6 +376,91 @@ func TestAgent_nextChecklist(t *testing.T) {
 	}
 }
 
+func TestAgent_pickPair(t *testing.T) {
+	for _, tc := range []struct {
+		Name      string
+		Set       ChecklistSet
+		Checklist int
+		ID        int
+		Err       error
+	}{
+		{
+			Name:      "no checklist",
+			Checklist: noChecklist,
+			ID:        noPair,
+			Err:       errNoChecklist,
+		},
+		{
+			Name:      "no pair",
+			Checklist: 0,
+			ID:        noPair,
+			Err:       errNoPair,
+			Set:       ChecklistSet{{}},
+		},
+		{
+			Name:      "first",
+			Checklist: 0,
+			ID:        0,
+			Set: ChecklistSet{
+				{Pairs: Pairs{{State: PairWaiting}}},
+			},
+		},
+		{
+			Name:      "all failed",
+			Checklist: 0,
+			ID:        noPair,
+			Err:       errNoPair,
+			Set: ChecklistSet{
+				{Pairs: Pairs{{State: PairFailed}}},
+			},
+		},
+		{
+			Name:      "simple unfreeze",
+			Checklist: 0,
+			ID:        0,
+			Set: ChecklistSet{
+				{Pairs: Pairs{{State: PairFrozen}}},
+			},
+		},
+		{
+			Name:      "simple no unfreeze",
+			Checklist: 0,
+			ID:        1,
+			Set: ChecklistSet{
+				{Pairs: Pairs{
+					{State: PairFrozen, Foundation: []byte{1}},
+					{State: PairWaiting, Foundation: []byte{1}},
+				}},
+			},
+		},
+		{
+			Name:      "no unfreeze from other checklist",
+			Checklist: 1,
+			ID:        noPair,
+			Err:       errNoPair,
+			Set: ChecklistSet{
+				{Pairs: Pairs{
+					{State: PairWaiting, Foundation: []byte{1}},
+				}},
+				{Pairs: Pairs{
+					{State: PairFrozen, Foundation: []byte{1}},
+				}},
+			},
+		},
+	} {
+		t.Run(tc.Name, func(t *testing.T) {
+			a := &Agent{set: tc.Set, checklist: tc.Checklist}
+			id, err := a.pickPair()
+			if err != tc.Err {
+				t.Errorf("pickPair error %v (got) != %v (expected)", err, tc.Err)
+			}
+			if id != tc.ID {
+				t.Errorf("pickPair id %d (got) != %d (expected)", id, tc.ID)
+			}
+		})
+	}
+}
+
 func TestAgent_updateState(t *testing.T) {
 	for _, tc := range []struct {
 		Name  string
