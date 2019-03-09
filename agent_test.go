@@ -485,7 +485,7 @@ func BenchmarkAgent_pickPair(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			id, err := a.pickPair()
 			if err != nil {
-				b.Fatal(errNoPair)
+				b.Fatal(err)
 			}
 			a.setPairState(a.checklist, id, PairWaiting)
 		}
@@ -536,7 +536,7 @@ func BenchmarkAgent_pickPair(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			id, err := a.pickPair()
 			if err != nil {
-				b.Fatal(errNoPair)
+				b.Fatal(err)
 			}
 			a.setPairState(a.checklist, id, PairFrozen)
 		}
