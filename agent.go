@@ -91,6 +91,8 @@ type context struct {
 	localPassword  string // LPASS
 	remoteUsername string // RFRAG
 	remotePassword string // RPASS
+
+	localPref int // local candidate address preference
 }
 
 func (c *context) Close() error { return nil }
@@ -165,13 +167,13 @@ func (a *Agent) check(p *Pair) error {
 	// set to the value computed by the algorithm in Section 5.1.2 for the
 	// local candidate, but with the candidate type preference of peer-
 	// reflexive candidates.
-	priority := PriorityAttr(p.Local.Priority) // TODO(ar): compute as peer-reflexive
+	priority := Priority(TypePreference(ct.PeerReflexive), ctx.localPref, p.Local.ComponentID)
 	var tieBreakerAttr stun.Setter = AttrControlling(a.tieBreaker)
 	if a.role == Controlled {
 		tieBreakerAttr = AttrControlled(a.tieBreaker)
 	}
 	m := stun.MustBuild(stun.TransactionID, stun.BindingRequest,
-		stun.NewUsername(ctx.remoteUsername+":"+ctx.localUsername), priority, tieBreakerAttr,
+		stun.NewUsername(ctx.remoteUsername+":"+ctx.localUsername), PriorityAttr(priority), tieBreakerAttr,
 		integrity, stun.Fingerprint,
 	)
 	var bindingErr error
