@@ -462,32 +462,85 @@ func TestAgent_pickPair(t *testing.T) {
 }
 
 func BenchmarkAgent_pickPair(b *testing.B) {
-	a := &Agent{
-		set: ChecklistSet{{
-			Pairs: Pairs{
+	b.Run("Simple", func(b *testing.B) {
+		a := &Agent{
+			set: ChecklistSet{{
+				Pairs: Pairs{
+					{
+						Foundation: []byte{1, 2, 3, 100, 31, 22},
+					},
+				},
+			}},
+		}
+		if err := a.init(); err != nil {
+			b.Fatal(err)
+		}
+		_, checklist := a.nextChecklist()
+		if checklist == noChecklist {
+			b.Fatal("no checklist")
+		}
+		a.checklist = checklist
+
+		b.ReportAllocs()
+		for i := 0; i < b.N; i++ {
+			id, err := a.pickPair()
+			if err != nil {
+				b.Fatal(errNoPair)
+			}
+			a.setPairState(a.checklist, id, PairWaiting)
+		}
+	})
+	b.Run("Frozen", func(b *testing.B) {
+		a := &Agent{
+			checklist: 0,
+			set: ChecklistSet{
 				{
-					Foundation: []byte{1, 2, 3, 100, 31, 22},
+					Pairs: Pairs{
+						{State: PairFrozen, Foundation: []byte{1, 2, 3, 100, 31, 22}},
+						{State: PairFailed, Foundation: []byte{1, 2, 3, 100, 31, 22}},
+						{State: PairFrozen, Foundation: []byte{1, 2, 3, 100, 31, 22}},
+						{State: PairFrozen, Foundation: []byte{1, 2, 3, 100, 31, 24}},
+						{State: PairFrozen, Foundation: []byte{1, 2, 3, 100, 31, 23}},
+						{State: PairFrozen, Foundation: []byte{1, 2, 3, 100, 31, 22}},
+					},
+				},
+				{
+					Pairs: Pairs{
+						{State: PairFrozen, Foundation: []byte{1, 2, 3, 100, 31, 21}},
+						{State: PairFrozen, Foundation: []byte{1, 2, 3, 100, 31, 22}},
+						{State: PairWaiting, Foundation: []byte{1, 2, 3, 100, 31, 21}},
+						{State: PairFrozen, Foundation: []byte{1, 2, 3, 100, 31, 22}},
+						{State: PairWaiting, Foundation: []byte{1, 2, 3, 100, 31, 23}},
+						{State: PairFrozen, Foundation: []byte{1, 2, 3, 100, 31, 20}},
+					},
+				},
+				{
+					Pairs: Pairs{
+						{State: PairFrozen, Foundation: []byte{1, 2, 3, 100, 31, 22}},
+					},
+				},
+				{
+					Pairs: Pairs{
+						{State: PairFrozen, Foundation: []byte{1, 2, 3, 100, 31, 22}},
+					},
+				},
+
+				{
+					Pairs: Pairs{
+						{State: PairFrozen, Foundation: []byte{1, 2, 3, 100, 31, 22}},
+					},
 				},
 			},
-		}},
-	}
-	if err := a.init(); err != nil {
-		b.Fatal(err)
-	}
-	_, checklist := a.nextChecklist()
-	if checklist == noChecklist {
-		b.Fatal("no checklist")
-	}
-	a.checklist = checklist
-
-	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
-		id, err := a.pickPair()
-		if err != nil {
-			b.Fatal(errNoPair)
 		}
-		a.setPairState(a.checklist, id, PairWaiting)
-	}
+		b.ReportAllocs()
+		for i := 0; i < b.N; i++ {
+			id, err := a.pickPair()
+			if err != nil {
+				b.Fatal(errNoPair)
+			}
+			a.setPairState(a.checklist, id, PairFrozen)
+		}
+	})
 }
 
 func TestAgent_updateState(t *testing.T) {
