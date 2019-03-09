@@ -459,6 +459,30 @@ func TestAgent_pickPair(t *testing.T) {
 			}
 		})
 	}
+	t.Run("first unfreeze only", func(t *testing.T) {
+		a := &Agent{
+			checklist: 0,
+			set: ChecklistSet{
+				{Pairs: Pairs{
+					{State: PairFrozen, Foundation: []byte{1}},
+					{State: PairFrozen, Foundation: []byte{2}},
+				}},
+			},
+		}
+		id, err := a.pickPair()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if id != 0 {
+			t.Error("bad pair picked")
+		}
+		if a.set[0].Pairs[1].State != PairFrozen {
+			t.Error("second pair should be frozen")
+		}
+		if a.set[0].Pairs[0].State != PairInProgress {
+			t.Error("first pair should be in progress")
+		}
+	})
 }
 
 func BenchmarkAgent_pickPair(b *testing.B) {

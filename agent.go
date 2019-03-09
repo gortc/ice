@@ -225,6 +225,7 @@ func (a *Agent) pickPair() (pairID int, err error) {
 				continue
 			}
 			a.setPairState(a.checklist, id, PairWaiting)
+			break
 		}
 	}
 	// Step 3. Looking for waiting pairs.
