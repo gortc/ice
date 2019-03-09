@@ -167,16 +167,18 @@ func (a *Agent) check(p *Pair) error {
 	// set to the value computed by the algorithm in Section 5.1.2 for the
 	// local candidate, but with the candidate type preference of peer-
 	// reflexive candidates.
-	priority := Priority(TypePreference(ct.PeerReflexive), ctx.localPref, p.Local.ComponentID)
+	priority := PriorityAttr(Priority(TypePreference(ct.PeerReflexive), ctx.localPref, p.Local.ComponentID))
 	var tieBreakerAttr stun.Setter = AttrControlling(a.tieBreaker)
 	if a.role == Controlled {
 		tieBreakerAttr = AttrControlled(a.tieBreaker)
 	}
+	username := stun.NewUsername(ctx.remoteUsername + ":" + ctx.localUsername)
 	m := stun.MustBuild(stun.TransactionID, stun.BindingRequest,
-		stun.NewUsername(ctx.remoteUsername+":"+ctx.localUsername), PriorityAttr(priority), tieBreakerAttr,
-		integrity, stun.Fingerprint,
+		&username, &priority, tieBreakerAttr,
+		&integrity, stun.Fingerprint,
 	)
 	var bindingErr error
+	// TODO(ar): Start instead of Do.
 	doErr := ctx.stun.Do(m, func(event stun.Event) {
 		if event.Error != nil {
 			bindingErr = event.Error
