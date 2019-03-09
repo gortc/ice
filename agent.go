@@ -155,6 +155,7 @@ func (e unrecoverableErrorCodeErr) Error() string {
 
 func (a *Agent) addPeerReflexive(p *Pair, addr Addr) error {
 	// TODO: Implement.
+	// See https://tools.ietf.org/html/rfc8445#section-7.2.5.3.1
 	return nil
 }
 
