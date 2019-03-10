@@ -898,3 +898,19 @@ func TestAgentRTO(t *testing.T) {
 		}
 	})
 }
+
+func TestAgent(t *testing.T) {
+	a, err := NewAgent()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = a.GatherCandidates(); err != nil {
+		t.Errorf("failed to gather candidates: %v", err)
+	}
+	if err = a.GatherCandidates(); err != errStreamAlreadyExist {
+		t.Errorf("expected stream alrady exist error, got %v", err)
+	}
+	if err = a.Close(); err != nil {
+		t.Fatalf("failed to close: %v", err)
+	}
+}

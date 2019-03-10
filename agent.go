@@ -12,6 +12,7 @@ import (
 	"time"
 
 	ct "github.com/gortc/ice/candidate"
+	"github.com/gortc/ice/gather"
 	"github.com/gortc/stun"
 )
 
@@ -91,19 +92,134 @@ type agentTransaction struct {
 	// ...
 }
 
+type AgentOption func(a *Agent)
+
+func NewAgent(opts ...AgentOption) (*Agent, error) {
+	a := &Agent{
+		gatherer: systemCandidateGatherer{addr: gather.DefaultGatherer},
+		ta:       defaultAgentTa,
+	}
+	for _, o := range opts {
+		o(a)
+	}
+	if err := a.init(); err != nil {
+		return nil, err
+	}
+	return a, nil
+}
+
+type localUDPCandidate struct {
+	candidate  Candidate
+	preference int
+	conn       net.PacketConn
+}
+
+type gathererOptions struct {
+	Components int
+}
+
+type candidateGatherer interface {
+	gatherUDP(opt gathererOptions) ([]localUDPCandidate, error)
+}
+
+type systemCandidateGatherer struct {
+	addr gather.Gatherer
+}
+
+func (g systemCandidateGatherer) gatherUDP(opt gathererOptions) ([]localUDPCandidate, error) {
+	addrs, err := g.addr.Gather()
+	if err != nil {
+		// Failed to gather host addresses.
+		return nil, err
+	}
+	hostAddr, err := HostAddresses(addrs)
+	if err != nil {
+		return nil, err
+	}
+	var candidates []localUDPCandidate
+	for component := 1; component <= opt.Components; component++ {
+		for _, addr := range hostAddr {
+			zeroPort := net.UDPAddr{
+				IP:   addr.IP,
+				Port: 0,
+			}
+			l, err := net.ListenPacket("udp", zeroPort.String())
+			if err != nil {
+				return nil, err
+			}
+			a := l.LocalAddr().(*net.UDPAddr)
+			c := Candidate{
+				Base: Addr{
+					IP:    addr.IP,
+					Port:  a.Port,
+					Proto: ct.UDP,
+				},
+				Type: ct.Host,
+				Addr: Addr{
+					IP:    addr.IP,
+					Port:  a.Port,
+					Proto: ct.UDP,
+				},
+				ComponentID: component,
+			}
+			c.Foundation = Foundation(&c, Addr{})
+			c.Priority = Priority(TypePreference(c.Type), addr.LocalPreference, c.ComponentID)
+			candidates = append(candidates, localUDPCandidate{
+				candidate:  c,
+				conn:       l,
+				preference: addr.LocalPreference,
+			})
+		}
+	}
+	return candidates, nil
+}
+
 // Agent implements ICE Agent.
 type Agent struct {
-	set         ChecklistSet
-	checklist   int // index in set or -1
-	foundations [][]byte
-	ctx         map[contextKey]context
-	tiebreaker  uint64
-	role        Role
-	state       State
-	rand        io.Reader
-	t           map[transactionID]*agentTransaction
+	set             ChecklistSet
+	checklist       int // index in set or -1
+	foundations     [][]byte
+	ctx             map[contextKey]context
+	tiebreaker      uint64
+	role            Role
+	state           State
+	rand            io.Reader
+	t               map[transactionID]*agentTransaction
+	localCandidates [][]localUDPCandidate
+	gatherer        candidateGatherer
 
 	ta time.Duration // section 15.2, Ta
+}
+
+// Close immediately stops all transactions and frees underlying resources.
+func (a *Agent) Close() error {
+	for _, streamCandidates := range a.localCandidates {
+		for i := range streamCandidates {
+			_ = streamCandidates[i].conn.Close()
+		}
+	}
+	return nil
+}
+
+// GatherCandidates gathers local candidates for single data stream.
+func (a *Agent) GatherCandidates() error {
+	return a.GatherCandidatesForStream(0)
+}
+
+var errStreamAlreadyExist = errors.New("data stream with provided id exists")
+
+// GatherCandidatesForStream allows gathering candidates for multiple streams.
+// The streamID is integer that starts from zero.
+func (a *Agent) GatherCandidatesForStream(streamID int) error {
+	if len(a.localCandidates) > streamID {
+		return errStreamAlreadyExist
+	}
+	candidates, err := a.gatherer.gatherUDP(gathererOptions{Components: 1})
+	if err != nil {
+		return err
+	}
+	a.localCandidates = append(a.localCandidates, candidates)
+	return nil
 }
 
 const minRTO = time.Millisecond * 500
