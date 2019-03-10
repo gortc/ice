@@ -102,7 +102,7 @@ func TestNewPairs(t *testing.T) {
 			Remote: Candidates{
 				{
 					Addr: Addr{
-						IP: net.ParseIP("1.1.1.1"),
+						IP: net.ParseIP("1.1.1.2"),
 					},
 				},
 			},
@@ -115,7 +115,7 @@ func TestNewPairs(t *testing.T) {
 					},
 					Remote: Candidate{
 						Addr: Addr{
-							IP: net.ParseIP("1.1.1.1"),
+							IP: net.ParseIP("1.1.1.2"),
 						},
 					},
 				},
@@ -125,9 +125,19 @@ func TestNewPairs(t *testing.T) {
 		t.Run(tc.Name, func(t *testing.T) {
 			got := NewPairs(tc.Local, tc.Remote)
 			if len(got) != len(tc.Result) {
-				t.Errorf("bad length: %d (got) != %d (expected)",
-					len(got), len(tc.Result),
-				)
+				t.Fatalf("bad length: %d (got) != %d (expected)", len(got), len(tc.Result))
+			}
+			for i := range tc.Result {
+				expectedAddr := tc.Result[i].Remote.Addr
+				gotAddr := got[i].Remote.Addr
+				if !gotAddr.Equal(expectedAddr) {
+					t.Errorf("[%d]: remote addr mismatch: %s (got) != %s (expected)", i, gotAddr, expectedAddr)
+				}
+				expectedAddr = tc.Result[i].Local.Addr
+				gotAddr = got[i].Local.Addr
+				if !gotAddr.Equal(expectedAddr) {
+					t.Errorf("[%d]: local addr mismatch: %s (got) != %s (expected)", i, gotAddr, expectedAddr)
+				}
 			}
 		})
 	}
