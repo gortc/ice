@@ -176,17 +176,18 @@ func (g systemCandidateGatherer) gatherUDP(opt gathererOptions) ([]localUDPCandi
 
 // Agent implements ICE Agent.
 type Agent struct {
-	set             ChecklistSet
-	checklist       int // index in set or -1
-	foundations     [][]byte
-	ctx             map[contextKey]context
-	tiebreaker      uint64
-	role            Role
-	state           State
-	rand            io.Reader
-	t               map[transactionID]*agentTransaction
-	localCandidates [][]localUDPCandidate
-	gatherer        candidateGatherer
+	set              ChecklistSet
+	checklist        int // index in set or -1
+	foundations      [][]byte
+	ctx              map[contextKey]context
+	tiebreaker       uint64
+	role             Role
+	state            State
+	rand             io.Reader
+	t                map[transactionID]*agentTransaction
+	localCandidates  [][]localUDPCandidate
+	remoteCandidates [][]Candidate
+	gatherer         candidateGatherer
 
 	ta time.Duration // section 15.2, Ta
 }
@@ -203,10 +204,12 @@ func (a *Agent) Close() error {
 
 // GatherCandidates gathers local candidates for single data stream.
 func (a *Agent) GatherCandidates() error {
-	return a.GatherCandidatesForStream(0)
+	return a.GatherCandidatesForStream(defaultStreamID)
 }
 
 var errStreamAlreadyExist = errors.New("data stream with provided id exists")
+
+const defaultStreamID = 0
 
 // GatherCandidatesForStream allows gathering candidates for multiple streams.
 // The streamID is integer that starts from zero.
@@ -220,6 +223,39 @@ func (a *Agent) GatherCandidatesForStream(streamID int) error {
 	}
 	a.localCandidates = append(a.localCandidates, candidates)
 	return nil
+}
+
+// AddRemoteCandidates adds remote candidate list, associating them with first data
+// stream.
+func (a *Agent) AddRemoteCandidates(c []Candidate) error {
+	return a.AddRemoteCandidatesForStream(defaultStreamID, c)
+}
+
+func (a *Agent) AddRemoteCandidatesForStream(streamID int, c []Candidate) error {
+	if len(a.remoteCandidates) > streamID {
+		return errStreamAlreadyExist
+	}
+	a.remoteCandidates = append(a.remoteCandidates, c)
+	return nil
+}
+
+var errStreamCountMismatch = errors.New("remote and local stream count mismatch")
+
+// PrepareChecklistSet initializes checklists for each data stream, generating
+// candidate pairs for each local and remote candidates.
+func (a *Agent) PrepareChecklistSet() error {
+	if len(a.remoteCandidates) != len(a.localCandidates) {
+		return errStreamCountMismatch
+	}
+	for streamID := 0; streamID < len(a.localCandidates); streamID++ {
+		var localCandidates []Candidate
+		for i := range a.localCandidates[streamID] {
+			localCandidates = append(localCandidates, a.localCandidates[streamID][i].candidate)
+		}
+		pairs := NewPairs(localCandidates, a.remoteCandidates[streamID])
+		a.set = append(a.set, Checklist{Pairs: pairs})
+	}
+	return a.init()
 }
 
 const minRTO = time.Millisecond * 500
@@ -611,6 +647,7 @@ func (a *Agent) init() error {
 		return err
 	}
 	a.tiebreaker = tbValue
+	a.foundations = a.foundations[:0]
 	// Gathering all unique foundations.
 	foundations := make(foundationSet)
 	for _, c := range a.set {
