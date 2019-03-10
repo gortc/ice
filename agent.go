@@ -272,7 +272,11 @@ func (a *Agent) PrepareChecklistSet() error {
 			localCandidates = append(localCandidates, a.localCandidates[streamID][i].candidate)
 		}
 		pairs := NewPairs(localCandidates, a.remoteCandidates[streamID])
-		a.set = append(a.set, Checklist{Pairs: pairs})
+		list := Checklist{Pairs: pairs}
+		list.ComputePriorities(a.role)
+		list.Sort()
+		list.Prune()
+		a.set = append(a.set, list)
 	}
 	return a.init()
 }
