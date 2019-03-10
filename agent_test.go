@@ -46,10 +46,10 @@ func newUDPCandidate(t *testing.T, addr HostAddr) candidateAndConn {
 }
 
 type stunMock struct {
-	do func(m *stun.Message, f func(stun.Event)) error
+	start func(m *stun.Message) error
 }
 
-func (s *stunMock) Do(m *stun.Message, f func(stun.Event)) error { return s.do(m, f) }
+func (s *stunMock) Start(m *stun.Message) error { return s.start(m) }
 
 func TestAgent_check(t *testing.T) {
 	a := Agent{}
@@ -88,7 +88,7 @@ func TestAgent_check(t *testing.T) {
 		checkMessage := func(t *testing.T, m *stun.Message) {
 			t.Helper()
 			if err := integrity.Check(m); err != nil {
-				t.Errorf("failed to check integrity: %v", err)
+				t.Errorf("failed to startCheck integrity: %v", err)
 			}
 			var u stun.Username
 			if err := u.GetFrom(m); err != nil {
@@ -106,7 +106,8 @@ func TestAgent_check(t *testing.T) {
 			}
 		}
 		t.Run("Controlling", func(t *testing.T) {
-			stunAgent.do = func(m *stun.Message, f func(stun.Event)) error {
+			var tid transactionID
+			stunAgent.start = func(m *stun.Message) error {
 				checkMessage(t, m)
 				var (
 					rControlling AttrControlling
@@ -121,16 +122,21 @@ func TestAgent_check(t *testing.T) {
 				if rControlling != 5721121980023635282 {
 					t.Errorf("unexpected tiebreaker: %d", rControlling)
 				}
-				f(stun.Event{Message: stun.MustBuild(m, stun.BindingSuccess, xorAddr, integrity, stun.Fingerprint)})
+				tid = m.TransactionID
 				return nil
 			}
-			if err := a.check(pair); err != nil {
-				t.Fatal("failed to check", err)
+			if err := a.startCheck(pair); err != nil {
+				t.Fatal("failed to startCheck", err)
+			}
+			resp := stun.MustBuild(stun.NewTransactionIDSetter(tid), stun.BindingSuccess, xorAddr, integrity, stun.Fingerprint)
+			if err := a.processBindingResponse(pair, resp, pair.Remote.Addr); err != nil {
+				t.Error(err)
 			}
 		})
 		t.Run("Controlled", func(t *testing.T) {
 			a.role = Controlled
-			stunAgent.do = func(m *stun.Message, f func(stun.Event)) error {
+			var tid transactionID
+			stunAgent.start = func(m *stun.Message) error {
 				checkMessage(t, m)
 				var (
 					rControlling AttrControlling
@@ -145,122 +151,142 @@ func TestAgent_check(t *testing.T) {
 				if rControlled != 5721121980023635282 {
 					t.Errorf("unexpected tiebreaker: %d", rControlled)
 				}
-				f(stun.Event{Message: stun.MustBuild(m, stun.BindingSuccess, xorAddr, integrity, stun.Fingerprint)})
+				tid = m.TransactionID
 				return nil
 			}
-			if err := a.check(pair); err != nil {
-				t.Fatal("failed to check", err)
+			if err := a.startCheck(pair); err != nil {
+				t.Fatal("failed to startCheck", err)
+			}
+			resp := stun.MustBuild(stun.NewTransactionIDSetter(tid), stun.BindingSuccess, xorAddr, integrity, stun.Fingerprint)
+			if err := a.processBindingResponse(pair, resp, pair.Remote.Addr); err != nil {
+				t.Error(err)
 			}
 		})
 	})
 	t.Run("STUN Agent failure", func(t *testing.T) {
 		stunErr := errors.New("failed")
-		stunAgent.do = func(m *stun.Message, f func(stun.Event)) error {
+		stunAgent.start = func(m *stun.Message) error {
 			return stunErr
 		}
-		if err := a.check(pair); err != stunErr {
-			t.Fatalf("unexpected error: %v", err)
-		}
-	})
-	t.Run("STUN Event error", func(t *testing.T) {
-		stunErr := errors.New("failed")
-		stunAgent.do = func(m *stun.Message, f func(stun.Event)) error {
-			f(stun.Event{
-				Error: stunErr,
-			})
-			return nil
-		}
-		if err := a.check(pair); err != stunErr {
+		if err := a.startCheck(pair); err != stunErr {
 			t.Fatalf("unexpected error: %v", err)
 		}
 	})
 	t.Run("STUN Unrecoverable error", func(t *testing.T) {
-		stunAgent.do = func(m *stun.Message, f func(stun.Event)) error {
-			f(stun.Event{
-				Message: stun.MustBuild(m, stun.BindingError, stun.CodeBadRequest, integrity, stun.Fingerprint),
-			})
+		var tid transactionID
+		stunAgent.start = func(m *stun.Message) error {
+			tid = m.TransactionID
 			return nil
 		}
 		codeErr := unrecoverableErrorCodeErr{Code: stun.CodeBadRequest}
-		if err := a.check(pair); err != codeErr {
+		if err := a.startCheck(pair); err != nil {
+			t.Fatal(err)
+		}
+		resp := stun.MustBuild(stun.NewTransactionIDSetter(tid), stun.BindingError, stun.CodeBadRequest, integrity, stun.Fingerprint)
+		if err := a.processBindingResponse(pair, resp, pair.Remote.Addr); err != codeErr {
 			t.Fatalf("unexpected error %v", err)
 		}
 	})
 	t.Run("STUN Error response without code", func(t *testing.T) {
-		stunAgent.do = func(m *stun.Message, f func(stun.Event)) error {
-			f(stun.Event{
-				Message: stun.MustBuild(m, stun.BindingError, integrity, stun.Fingerprint),
-			})
+		var tid transactionID
+		stunAgent.start = func(m *stun.Message) error {
+			tid = m.TransactionID
 			return nil
 		}
-		if err := a.check(pair); err == nil {
+		if err := a.startCheck(pair); err != nil {
+			t.Fatal(err)
+		}
+		resp := stun.MustBuild(tid, stun.BindingError, integrity, stun.Fingerprint)
+		if err := a.processBindingResponse(pair, resp, pair.Remote.Addr); err == nil {
 			t.Fatal("unexpected success")
 		}
 	})
 	t.Run("STUN Role conflict", func(t *testing.T) {
-		stunAgent.do = func(m *stun.Message, f func(stun.Event)) error {
-			f(stun.Event{
-				Message: stun.MustBuild(m, stun.BindingError, stun.CodeRoleConflict, xorAddr, integrity, stun.Fingerprint),
-			})
+		var tid transactionID
+		stunAgent.start = func(m *stun.Message) error {
+			tid = m.TransactionID
 			return nil
 		}
-		if err := a.check(pair); err != errRoleConflict {
+		resp := stun.MustBuild(tid, stun.BindingError, stun.CodeRoleConflict, xorAddr, integrity, stun.Fingerprint)
+		if err := a.startCheck(pair); err != nil {
+			t.Fatal(err)
+		}
+		if err := a.processBindingResponse(pair, resp, pair.Remote.Addr); err != errRoleConflict {
 			t.Fatalf("unexpected error: %v", err)
 		}
 	})
 	t.Run("STUN Integrity error", func(t *testing.T) {
-		stunAgent.do = func(m *stun.Message, f func(stun.Event)) error {
-			i := stun.NewShortTermIntegrity("RPASS+BAD")
-			response := stun.MustBuild(m, stun.BindingSuccess, i, xorAddr, stun.Fingerprint)
-			f(stun.Event{Message: response})
+		var tid transactionID
+		stunAgent.start = func(m *stun.Message) error {
+			tid = m.TransactionID
 			return nil
 		}
-		if err := a.check(pair); err != stun.ErrIntegrityMismatch {
+		if err := a.startCheck(pair); err != nil {
+			t.Fatal(err)
+		}
+		i := stun.NewShortTermIntegrity("RPASS+BAD")
+		resp := stun.MustBuild(tid, stun.BindingSuccess, i, xorAddr, stun.Fingerprint)
+		if err := a.processBindingResponse(pair, resp, pair.Remote.Addr); err != stun.ErrIntegrityMismatch {
 			t.Fatalf("unexpected error: %v", err)
 		}
 	})
 	t.Run("STUN No fingerprint", func(t *testing.T) {
-		stunAgent.do = func(m *stun.Message, f func(stun.Event)) error {
-			response := stun.MustBuild(m, stun.BindingSuccess, integrity)
-			f(stun.Event{Message: response})
+		var tid transactionID
+		stunAgent.start = func(m *stun.Message) error {
+			tid = m.TransactionID
 			return nil
 		}
-		if err := a.check(pair); err != errFingerprintNotFound {
+		if err := a.startCheck(pair); err != nil {
+			t.Fatal(err)
+		}
+		resp := stun.MustBuild(tid, stun.BindingSuccess, integrity)
+		if err := a.processBindingResponse(pair, resp, pair.Remote.Addr); err != errFingerprintNotFound {
 			t.Fatalf("unexpected error: %v", err)
 		}
 	})
 	t.Run("STUN Bad fingerprint", func(t *testing.T) {
-		stunAgent.do = func(m *stun.Message, f func(stun.Event)) error {
-			badFP := stun.RawAttribute{Type: stun.AttrFingerprint, Value: []byte{'b', 'a', 'd', 0}}
-			response := stun.MustBuild(m, stun.BindingSuccess, integrity, badFP)
-			f(stun.Event{Message: response})
+		var tid transactionID
+		stunAgent.start = func(m *stun.Message) error {
+			tid = m.TransactionID
 			return nil
 		}
-		if err := a.check(pair); err != stun.ErrFingerprintMismatch {
+		if err := a.startCheck(pair); err != nil {
+			t.Fatal(err)
+		}
+		badFP := stun.RawAttribute{Type: stun.AttrFingerprint, Value: []byte{'b', 'a', 'd', 0}}
+		resp := stun.MustBuild(tid, stun.BindingSuccess, integrity, badFP)
+		if err := a.processBindingResponse(pair, resp, pair.Remote.Addr); err != stun.ErrFingerprintMismatch {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		t.Run("Should be done before integrity check", func(t *testing.T) {
-			stunAgent.do = func(m *stun.Message, f func(stun.Event)) error {
-				i := stun.NewShortTermIntegrity("RPASS+BAD")
-				badFP := stun.RawAttribute{Type: stun.AttrFingerprint, Value: []byte{'b', 'a', 'd', 0}}
-				response := stun.MustBuild(m, stun.BindingSuccess, i, badFP)
-				f(stun.Event{Message: response})
+		t.Run("Should be done before integrity startCheck", func(t *testing.T) {
+			var tid transactionID
+			stunAgent.start = func(m *stun.Message) error {
+				tid = m.TransactionID
 				return nil
 			}
-			if err := a.check(pair); err != stun.ErrFingerprintMismatch {
+			if err := a.startCheck(pair); err != nil {
+				t.Fatal(err)
+			}
+			i := stun.NewShortTermIntegrity("RPASS+BAD")
+			badFP := stun.RawAttribute{Type: stun.AttrFingerprint, Value: []byte{'b', 'a', 'd', 0}}
+			resp := stun.MustBuild(tid, stun.BindingSuccess, i, badFP)
+			if err := a.processBindingResponse(pair, resp, pair.Remote.Addr); err != stun.ErrFingerprintMismatch {
 				t.Fatalf("unexpected error: %v", err)
 			}
 		})
 	})
 	t.Run("STUN Wrong response message type", func(t *testing.T) {
-		stunAgent.do = func(m *stun.Message, f func(stun.Event)) error {
-			f(stun.Event{
-				Message: stun.MustBuild(m, stun.BindingRequest, stun.CodeBadRequest, integrity, stun.Fingerprint),
-			})
+		var tid transactionID
+		stunAgent.start = func(m *stun.Message) error {
+			tid = m.TransactionID
 			return nil
 		}
 		typeErr := unexpectedResponseTypeErr{Type: stun.BindingRequest}
-		if err := a.check(pair); err != typeErr {
+		if err := a.startCheck(pair); err != nil {
+			t.Fatal(err)
+		}
+		resp := stun.MustBuild(tid, stun.BindingRequest, stun.CodeBadRequest, integrity, stun.Fingerprint)
+		if err := a.processBindingResponse(pair, resp, pair.Remote.Addr); err != typeErr {
 			t.Fatalf("unexpected success")
 		}
 	})

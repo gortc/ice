@@ -69,10 +69,17 @@ const noChecklist = -1
 
 type transactionID [stun.TransactionIDSize]byte
 
+func (t transactionID) AddTo(m *stun.Message) error {
+	m.TransactionID = t
+	return nil
+}
+
 // agentTransaction represents transaction in progress.
 //
 // Concurrent access is invalid.
 type agentTransaction struct {
+	checklist int
+	pair      int
 	// id      transactionID
 	// attempt int32
 	// calls   int32
@@ -96,7 +103,7 @@ type Agent struct {
 }
 
 type ctxSTUNClient interface {
-	Do(m *stun.Message, f func(stun.Event)) error
+	Start(m *stun.Message) error
 }
 
 // context wraps resources for candidate.
@@ -111,6 +118,8 @@ type context struct {
 
 	localPref int // local candidate address preference
 }
+
+func (c *context) SendSTUN(m *stun.Message) error { return c.stun.Start(m) }
 
 func (c *context) Close() error { return nil }
 
@@ -225,8 +234,8 @@ func (a *Agent) pickPair() (pairID int, err error) {
 	if a.checklist == noChecklist {
 		return noPair, errNoChecklist
 	}
-	// Step 1. Picking from triggered check queue.
-	// TODO: Implement triggered-check queue.
+	// Step 1. Picking from triggered startCheck queue.
+	// TODO: Implement triggered-startCheck queue.
 	// Step 2. Handling frozen pairs.
 	pairs := a.set[a.checklist].Pairs
 	anyWaiting := false
@@ -267,22 +276,57 @@ func (a *Agent) pickPair() (pairID int, err error) {
 	return noPair, errNoPair
 }
 
-func (a *Agent) processBindingResponse(p *Pair, integrity stun.MessageIntegrity, e stun.Event) error {
-	if e.Error != nil {
-		return e.Error
+var errNotSTUN = errors.New("packet is not STUN")
+
+func (a *Agent) processUDP(buf []byte, addr net.UDPAddr) error {
+	if !stun.IsMessage(buf) {
+		return errNotSTUN
 	}
-	if err := stun.Fingerprint.Check(e.Message); err != nil {
+	m := &stun.Message{Raw: buf}
+	if err := m.Decode(); err != nil {
+		return err
+	}
+	t, ok := a.t[m.TransactionID]
+	if !ok {
+		// Transaction is not found.
+		return nil
+	}
+	p := a.set[t.checklist].Pairs[t.pair]
+	switch m.Type {
+	case stun.BindingSuccess, stun.BindingError:
+		return a.processBindingResponse(&p, m, Addr{Port: addr.Port, IP: addr.IP, Proto: ct.UDP})
+	}
+	return nil
+}
+
+var errNonSymmetricAddr = errors.New("peer address is not symmetric")
+
+func (a *Agent) handleBindingResponse(t *agentTransaction, p *Pair, m *stun.Message, raddr Addr) {
+	if err := a.processBindingResponse(p, m, raddr); err != nil {
+		a.setPairState(t.checklist, t.pair, PairFailed)
+		return
+	}
+	a.setPairState(t.checklist, t.pair, PairSucceeded)
+}
+
+func (a *Agent) processBindingResponse(p *Pair, m *stun.Message, raddr Addr) error {
+	ctx := a.ctx[pairContextKey(p)]
+	integrity := stun.NewShortTermIntegrity(ctx.remotePassword)
+	if err := stun.Fingerprint.Check(m); err != nil {
 		if err == stun.ErrAttributeNotFound {
 			return errFingerprintNotFound
 		}
 		return err
 	}
-	if err := integrity.Check(e.Message); err != nil {
+	if err := integrity.Check(m); err != nil {
 		return err
 	}
-	if e.Message.Type == stun.BindingError {
+	if !raddr.Equal(p.Remote.Addr) {
+		return errNonSymmetricAddr
+	}
+	if m.Type == stun.BindingError {
 		var errCode stun.ErrorCodeAttribute
-		if err := errCode.GetFrom(e.Message); err != nil {
+		if err := errCode.GetFrom(m); err != nil {
 			return err
 		}
 		if errCode.Code == stun.CodeRoleConflict {
@@ -290,11 +334,11 @@ func (a *Agent) processBindingResponse(p *Pair, integrity stun.MessageIntegrity,
 		}
 		return unrecoverableErrorCodeErr{Code: errCode.Code}
 	}
-	if e.Message.Type != stun.BindingSuccess {
-		return unexpectedResponseTypeErr{Type: e.Message.Type}
+	if m.Type != stun.BindingSuccess {
+		return unexpectedResponseTypeErr{Type: m.Type}
 	}
 	var xAddr stun.XORMappedAddress
-	if err := xAddr.GetFrom(e.Message); err != nil {
+	if err := xAddr.GetFrom(m); err != nil {
 		return fmt.Errorf("can't get xor mapped address: %v", err)
 	}
 	addr := Addr{
@@ -311,8 +355,8 @@ func (a *Agent) processBindingResponse(p *Pair, integrity stun.MessageIntegrity,
 	return nil
 }
 
-// check performs connectivity check for pair.
-func (a *Agent) check(p *Pair) error {
+// startCheck initializes connectivity check for pair.
+func (a *Agent) startCheck(p *Pair) error {
 	// Once the agent has picked a candidate pair for which a connectivity
 	// check is to be performed, the agent starts a check and sends the
 	// Binding request from the base associated with the local candidate of
@@ -332,16 +376,7 @@ func (a *Agent) check(p *Pair) error {
 		&username, &priority, &role,
 		&integrity, stun.Fingerprint,
 	)
-	var bindingErr error
-	// TODO(ar): Start instead of Do.
-	doErr := ctx.stun.Do(m, func(e stun.Event) { bindingErr = a.processBindingResponse(p, integrity, e) })
-	if doErr != nil {
-		return doErr
-	}
-	if bindingErr != nil {
-		return bindingErr
-	}
-	return nil
+	return ctx.stun.Start(m)
 }
 
 func randUint64(r io.Reader) (uint64, error) {
