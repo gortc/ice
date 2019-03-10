@@ -7,6 +7,7 @@ import (
 	"net"
 	"sort"
 	"testing"
+	"time"
 
 	"github.com/gortc/ice/candidate"
 	"github.com/gortc/stun"
@@ -852,5 +853,48 @@ func TestFoundationSet(t *testing.T) {
 			}()
 			fs.Add(f)
 		})
+	})
+}
+
+func TestAgentRTO(t *testing.T) {
+	t.Run("Blank", func(t *testing.T) {
+		a := &Agent{}
+		mustInit(t, a)
+		if rto := a.rto(); rto != time.Millisecond*500 {
+			t.Errorf("bad rto %s", rto)
+		}
+	})
+	t.Run("Default", func(t *testing.T) {
+		a := &Agent{
+			// Note that after init() state will change,
+			// there will be 12 in "waiting/progress".
+			set: ChecklistSet{
+				{
+					Pairs: Pairs{
+						{State: PairFailed},
+					},
+				},
+				{
+					Pairs: Pairs{
+						{State: PairFailed},
+						{State: PairFrozen},
+						{State: PairWaiting},
+						{State: PairWaiting},
+						{State: PairWaiting},
+						{State: PairWaiting},
+						{State: PairWaiting},
+						{State: PairWaiting},
+						{State: PairWaiting},
+						{State: PairWaiting},
+						{State: PairWaiting},
+						{State: PairInProgress},
+					},
+				},
+			},
+		}
+		mustInit(t, a)
+		if rto := a.rto(); rto != time.Millisecond*7800 {
+			t.Errorf("bad rto %s", rto)
+		}
 	})
 }

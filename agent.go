@@ -9,6 +9,7 @@ import (
 	"io"
 	"log"
 	"net"
+	"time"
 
 	ct "github.com/gortc/ice/candidate"
 	"github.com/gortc/stun"
@@ -101,7 +102,35 @@ type Agent struct {
 	state       State
 	rand        io.Reader
 	t           map[transactionID]*agentTransaction
+
+	ta time.Duration // section 15.2, Ta
 }
+
+const minRTO = time.Millisecond * 500
+
+// rto calculates RTO based on pairs in checklist set and number of connectivity checks.
+func (a *Agent) rto() time.Duration {
+	// See Section 14.3, RTO.
+	// RTO = MAX (500ms, Ta * N * (Num-Waiting + Num-In-Progress))
+	var n, total int
+	for _, c := range a.set {
+		for i := range c.Pairs {
+			total++
+			log.Println("state:", c.Pairs[i].State)
+			if c.Pairs[i].State.In(PairWaiting, PairInProgress) {
+				n++
+			}
+		}
+	}
+	rto := time.Duration(total*n) * a.ta
+	if rto < minRTO {
+		rto = minRTO
+	}
+	fmt.Println("total:", total, "waiting:", n)
+	return rto
+}
+
+const defaultAgentTa = time.Millisecond * 50
 
 type ctxSTUNClient interface {
 	Start(m *stun.Message) error
@@ -448,6 +477,9 @@ func (a *Agent) nextChecklist() (c Checklist, id int) {
 
 // init sets initial states for checklist sets.
 func (a *Agent) init() error {
+	if a.ta == 0 {
+		a.ta = defaultAgentTa
+	}
 	if a.t == nil {
 		a.t = make(map[transactionID]*agentTransaction)
 	}
