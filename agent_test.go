@@ -61,8 +61,8 @@ func TestAgent_check(t *testing.T) {
 	if err := a.init(); err != nil {
 		t.Fatal(err)
 	}
-	if a.tieBreaker != 5721121980023635282 {
-		t.Fatal(a.tieBreaker)
+	if a.tiebreaker != 5721121980023635282 {
+		t.Fatal(a.tiebreaker)
 	}
 	if a.role != Controlling {
 		t.Fatal("bad role")
@@ -119,7 +119,7 @@ func TestAgent_check(t *testing.T) {
 					t.Error(err)
 				}
 				if rControlling != 5721121980023635282 {
-					t.Errorf("unexpected tie-breaker: %d", rControlling)
+					t.Errorf("unexpected tiebreaker: %d", rControlling)
 				}
 				f(stun.Event{Message: stun.MustBuild(m, stun.BindingSuccess, xorAddr, integrity, stun.Fingerprint)})
 				return nil
@@ -143,7 +143,7 @@ func TestAgent_check(t *testing.T) {
 					t.Error(err)
 				}
 				if rControlled != 5721121980023635282 {
-					t.Errorf("unexpected tie-breaker: %d", rControlled)
+					t.Errorf("unexpected tiebreaker: %d", rControlled)
 				}
 				f(stun.Event{Message: stun.MustBuild(m, stun.BindingSuccess, xorAddr, integrity, stun.Fingerprint)})
 				return nil

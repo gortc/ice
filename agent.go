@@ -88,7 +88,7 @@ type Agent struct {
 	checklist   int // index in set or -1
 	foundations [][]byte
 	ctx         map[contextKey]context
-	tieBreaker  uint64
+	tiebreaker  uint64
 	role        Role
 	state       State
 	rand        io.Reader
@@ -326,13 +326,10 @@ func (a *Agent) check(p *Pair) error {
 	// local candidate, but with the candidate type preference of peer-
 	// reflexive candidates.
 	priority := PriorityAttr(Priority(TypePreference(ct.PeerReflexive), ctx.localPref, p.Local.ComponentID))
-	var tieBreakerAttr stun.Setter = AttrControlling(a.tieBreaker)
-	if a.role == Controlled {
-		tieBreakerAttr = AttrControlled(a.tieBreaker)
-	}
+	role := AttrControl{Role: a.role, Tiebreaker: a.tiebreaker}
 	username := stun.NewUsername(ctx.remoteUsername + ":" + ctx.localUsername)
 	m := stun.MustBuild(stun.TransactionID, stun.BindingRequest,
-		&username, &priority, tieBreakerAttr,
+		&username, &priority, &role,
 		&integrity, stun.Fingerprint,
 	)
 	var bindingErr error
@@ -393,12 +390,12 @@ func (a *Agent) init() error {
 	if a.ctx == nil {
 		a.ctx = make(map[contextKey]context)
 	}
-	// Generating random tie-breaker number.
+	// Generating random tiebreaker number.
 	tbValue, err := randUint64(a.rand)
 	if err != nil {
 		return err
 	}
-	a.tieBreaker = tbValue
+	a.tiebreaker = tbValue
 	// Gathering all unique foundations.
 	foundations := make(foundationSet)
 	for _, c := range a.set {
