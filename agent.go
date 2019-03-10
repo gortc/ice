@@ -379,6 +379,7 @@ func (a *Agent) processBindingResponse(p *Pair, m *stun.Message, raddr Addr) err
 	}
 	// TODO: Check all other local addresses.
 	if !addr.Equal(p.Local.Addr) {
+		// TODO: Copy xAddr.IP, the *m attribute values should not be held.
 		if err := a.addPeerReflexive(p, addr); err != nil {
 			return err
 		}
