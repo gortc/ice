@@ -676,3 +676,55 @@ func BenchmarkPairContextKey(b *testing.B) {
 		}
 	}
 }
+
+func shouldNotAllocate(t *testing.T, f func()) {
+	t.Helper()
+	if a := testing.AllocsPerRun(10, f); a > 0 {
+		t.Errorf("unexpected allocations: %f", a)
+	}
+}
+
+func TestFoundationSet(t *testing.T) {
+	t.Run("Add", func(t *testing.T) {
+		fs := make(foundationSet)
+		shouldNotAllocate(t, func() {
+			fs.Add([]byte{1, 2})
+		})
+		if !fs.Contains([]byte{1, 2}) {
+			t.Error("does not contain {1, 2}")
+		}
+	})
+	t.Run("Contains", func(t *testing.T) {
+		fs := make(foundationSet)
+		fs.Add([]byte{1, 2})
+		if !fs.Contains([]byte{1, 2}) {
+			t.Error("does not contain {1, 2}")
+		}
+		shouldNotAllocate(t, func() {
+			fs.Contains([]byte{1, 2})
+		})
+		if fs.Contains([]byte{1, 3}) {
+			t.Error("should not contain {1, 3}")
+		}
+	})
+	t.Run("Panic on too big foundation", func(t *testing.T) {
+		fs := make(foundationSet)
+		f := make([]byte, 200)
+		t.Run("Contains", func(t *testing.T) {
+			defer func() {
+				if recover() == nil {
+					t.Error("no panic")
+				}
+			}()
+			fs.Contains(f)
+		})
+		t.Run("Add", func(t *testing.T) {
+			defer func() {
+				if recover() == nil {
+					t.Error("no panic")
+				}
+			}()
+			fs.Add(f)
+		})
+	})
+}

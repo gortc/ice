@@ -65,8 +65,6 @@ type contextKey struct {
 // ChecklistSet represents ordered list of checklists.
 type ChecklistSet []Checklist
 
-const maxFoundationLength = 64
-
 const noChecklist = -1
 
 // Agent implements ICE Agent.
@@ -125,8 +123,6 @@ func (a *Agent) updateState() {
 	a.state = state
 }
 
-type foundationKey [maxFoundationLength]byte
-
 func pairContextKey(p *Pair) contextKey {
 	k := contextKey{
 		LocalProto:  p.Local.Addr.Proto,
@@ -162,6 +158,10 @@ func (a *Agent) addPeerReflexive(p *Pair, addr Addr) error {
 	return nil
 }
 
+const maxPairFoundationBytes = 64
+
+type foundationKey [maxPairFoundationBytes]byte
+
 type foundationSet map[foundationKey]struct{}
 
 func getFoundationKey(f []byte) foundationKey {
@@ -171,11 +171,19 @@ func getFoundationKey(f []byte) foundationKey {
 }
 
 func (s foundationSet) Contains(f []byte) bool {
+	if len(f) > maxPairFoundationBytes {
+		panic("length of foundation is greater that maximum")
+	}
 	_, ok := s[getFoundationKey(f)]
 	return ok
 }
 
-func (s foundationSet) Add(f []byte) { s[getFoundationKey(f)] = struct{}{} }
+func (s foundationSet) Add(f []byte) {
+	if len(f) > maxPairFoundationBytes {
+		panic("length of foundation is greater that maximum")
+	}
+	s[getFoundationKey(f)] = struct{}{}
+}
 
 func (a *Agent) setPairState(checklist, pair int, state PairState) {
 	c := a.set[checklist]
