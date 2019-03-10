@@ -94,10 +94,17 @@ type agentTransaction struct {
 
 type AgentOption func(a *Agent)
 
+func withGatherer(g candidateGatherer) AgentOption {
+	return func(a *Agent) { a.gatherer = g }
+}
+
+const defaultMaxChecks = 100
+
 func NewAgent(opts ...AgentOption) (*Agent, error) {
 	a := &Agent{
-		gatherer: systemCandidateGatherer{addr: gather.DefaultGatherer},
-		ta:       defaultAgentTa,
+		gatherer:  systemCandidateGatherer{addr: gather.DefaultGatherer},
+		maxChecks: defaultMaxChecks,
+		ta:        defaultAgentTa,
 	}
 	for _, o := range opts {
 		o(a)
@@ -189,7 +196,8 @@ type Agent struct {
 	remoteCandidates [][]Candidate
 	gatherer         candidateGatherer
 
-	ta time.Duration // section 15.2, Ta
+	maxChecks int
+	ta        time.Duration // section 15.2, Ta
 }
 
 // Close immediately stops all transactions and frees underlying resources.
@@ -276,6 +284,7 @@ func (a *Agent) PrepareChecklistSet() error {
 		list.ComputePriorities(a.role)
 		list.Sort()
 		list.Prune()
+		list.Limit(a.maxChecks)
 		a.set = append(a.set, list)
 	}
 	return a.init()

@@ -169,7 +169,7 @@ func NewPairs(local, remote Candidates) Pairs {
 			}
 			pair := Pair{
 				Local:  local[l],
-				Remote: local[r],
+				Remote: remote[r],
 			}
 			pair.SetFoundation()
 			p = append(p, pair)

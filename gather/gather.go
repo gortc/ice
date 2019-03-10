@@ -108,7 +108,8 @@ func (a Addr) ZeroPortAddr() string {
 
 type defaultGatherer struct{}
 
-func precedence(ip net.IP) int {
+// Precedence returns precedence value of ip address defined by RFC 6724.
+func Precedence(ip net.IP) int {
 	for _, p := range precedences {
 		if p.ipNet.Contains(ip) {
 			return p.value
@@ -134,7 +135,7 @@ func ifaceToAddr(i netInterface, name string) ([]Addr, error) {
 		}
 		addr := Addr{
 			IP:         ip,
-			Precedence: precedence(ip),
+			Precedence: Precedence(ip),
 		}
 		if ip.IsLinkLocalUnicast() {
 			// Zone must be set for link-local addresses.

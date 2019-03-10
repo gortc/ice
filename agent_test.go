@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gortc/ice/candidate"
+	"github.com/gortc/ice/gather"
 	"github.com/gortc/stun"
 )
 
@@ -899,29 +900,236 @@ func TestAgentRTO(t *testing.T) {
 	})
 }
 
+func mustClose(t *testing.T, closer io.Closer) {
+	t.Helper()
+	if err := closer.Close(); err != nil {
+		t.Error(err)
+	}
+}
+
+type mockGatherer struct {
+	udp func(opt gathererOptions) ([]localUDPCandidate, error)
+}
+
+func (g *mockGatherer) gatherUDP(opt gathererOptions) ([]localUDPCandidate, error) {
+	return g.udp(opt)
+}
+
+type mockPacketConn struct{}
+
+func (mockPacketConn) ReadFrom(p []byte) (n int, addr net.Addr, err error) {
+	panic("implement me")
+}
+
+func (mockPacketConn) WriteTo(p []byte, addr net.Addr) (n int, err error) {
+	panic("implement me")
+}
+
+func (mockPacketConn) Close() error { return nil }
+
+func (mockPacketConn) LocalAddr() net.Addr {
+	panic("implement me")
+}
+
+func (mockPacketConn) SetDeadline(t time.Time) error {
+	panic("implement me")
+}
+
+func (mockPacketConn) SetReadDeadline(t time.Time) error {
+	panic("implement me")
+}
+
+func (mockPacketConn) SetWriteDeadline(t time.Time) error {
+	panic("implement me")
+}
+
 func TestAgent(t *testing.T) {
-	a, err := NewAgent()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := a.LocalCandidates(); err != errNoStreamFound {
-		t.Errorf("expected not to find stream, got %v", err)
-	}
-	if err = a.GatherCandidates(); err != nil {
-		t.Errorf("failed to gather candidates: %v", err)
-	}
-	if err = a.GatherCandidates(); err != errStreamAlreadyExist {
-		t.Errorf("expected stream alrady exist error, got %v", err)
-	}
-	localCandidates, err := a.LocalCandidates()
-	if err != nil {
-		t.Errorf("failed to get local candidates: %v", err)
-	}
-	t.Logf("got %d candidate(s)", len(localCandidates))
-	if len(localCandidates) == 0 {
-		t.Error("no local candidates provided")
-	}
-	if err = a.Close(); err != nil {
-		t.Fatalf("failed to close: %v", err)
-	}
+	t.Run("Solo", func(t *testing.T) {
+		a, err := NewAgent()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err = a.LocalCandidates(); err != errNoStreamFound {
+			t.Errorf("expected not to find stream, got %v", err)
+		}
+		if err = a.GatherCandidates(); err != nil {
+			t.Errorf("failed to gather candidates: %v", err)
+		}
+		if err = a.GatherCandidates(); err != errStreamAlreadyExist {
+			t.Errorf("expected stream alrady exist error, got %v", err)
+		}
+		localCandidates, err := a.LocalCandidates()
+		if err != nil {
+			t.Errorf("failed to get local candidates: %v", err)
+		}
+		t.Logf("got %d candidate(s)", len(localCandidates))
+		if len(localCandidates) == 0 {
+			t.Error("no local candidates provided")
+		}
+		if err = a.Close(); err != nil {
+			t.Fatalf("failed to close: %v", err)
+		}
+	})
+	t.Run("Dual", func(t *testing.T) {
+		a, err := NewAgent()
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer mustClose(t, a)
+		if err = a.GatherCandidates(); err != nil {
+			t.Errorf("failed to gather candidates: %v", err)
+		}
+		b, err := NewAgent()
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer mustClose(t, b)
+		if err = b.GatherCandidates(); err != nil {
+			t.Errorf("failed to gather candidates: %v", err)
+		}
+		aCandidates, err := a.LocalCandidates()
+		if err != nil {
+			t.Fatal(err)
+		}
+		bCandidates, err := b.LocalCandidates()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err = a.AddRemoteCandidates(bCandidates); err != nil {
+			t.Fatal(err)
+		}
+		if err = b.AddRemoteCandidates(aCandidates); err != nil {
+			t.Fatal(err)
+		}
+		if err = a.PrepareChecklistSet(); err != nil {
+			t.Fatal(err)
+		}
+		if err = b.PrepareChecklistSet(); err != nil {
+			t.Fatal(err)
+		}
+		t.Logf("got pairs: %d", len(a.set[0].Pairs))
+		for _, p := range a.set[0].Pairs {
+			t.Logf("%s -> %s [%d]", p.Local.Addr, p.Remote.Addr, p.Priority)
+		}
+	})
+	t.Run("Custom gatherer", func(t *testing.T) {
+		a, err := NewAgent(withGatherer(&mockGatherer{
+			udp: func(opt gathererOptions) (candidates []localUDPCandidate, e error) {
+				ip := net.IPv4(10, 0, 0, 2)
+				addrs, err := HostAddresses([]gather.Addr{
+					{
+						IP:         ip,
+						Precedence: gather.Precedence(ip),
+					},
+				})
+				if err != nil {
+					panic(err)
+				}
+				a := Addr{
+					IP:    addrs[0].IP,
+					Port:  30001,
+					Proto: candidate.UDP,
+				}
+				c := localUDPCandidate{
+					candidate: Candidate{
+						Base: Addr{
+							IP:    a.IP,
+							Port:  a.Port,
+							Proto: candidate.UDP,
+						},
+						Type: candidate.Host,
+						Addr: Addr{
+							IP:    a.IP,
+							Port:  a.Port,
+							Proto: candidate.UDP,
+						},
+						ComponentID: 1,
+					},
+					conn: mockPacketConn{},
+				}
+				return []localUDPCandidate{c}, nil
+			},
+		}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer mustClose(t, a)
+		if err = a.GatherCandidates(); err != nil {
+			t.Errorf("failed to gather candidates: %v", err)
+		}
+		b, err := NewAgent(withGatherer(&mockGatherer{
+			udp: func(opt gathererOptions) (candidates []localUDPCandidate, e error) {
+				ip := net.IPv4(10, 0, 0, 2)
+				addrs, addrErr := HostAddresses([]gather.Addr{
+					{
+						IP:         ip,
+						Precedence: gather.Precedence(ip),
+					},
+				})
+				if addrErr != nil {
+					panic(addrErr)
+				}
+				a := Addr{
+					IP:    addrs[0].IP,
+					Port:  30002,
+					Proto: candidate.UDP,
+				}
+				c := localUDPCandidate{
+					candidate: Candidate{
+						Base: Addr{
+							IP:    a.IP,
+							Port:  a.Port,
+							Proto: candidate.UDP,
+						},
+						Type: candidate.Host,
+						Addr: Addr{
+							IP:    a.IP,
+							Port:  a.Port,
+							Proto: candidate.UDP,
+						},
+						ComponentID: 1,
+					},
+					conn: mockPacketConn{},
+				}
+				return []localUDPCandidate{c}, nil
+			},
+		}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		b.role = Controlled
+		defer mustClose(t, b)
+		if err = b.GatherCandidates(); err != nil {
+			t.Errorf("failed to gather candidates: %v", err)
+		}
+		aCandidates, err := a.LocalCandidates()
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Log("a:", aCandidates[0].Addr)
+		bCandidates, err := b.LocalCandidates()
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Log("b:", bCandidates[0].Addr)
+		if err = a.AddRemoteCandidates(bCandidates); err != nil {
+			t.Fatal(err)
+		}
+		if err = b.AddRemoteCandidates(aCandidates); err != nil {
+			t.Fatal(err)
+		}
+		if err = a.PrepareChecklistSet(); err != nil {
+			t.Fatal(err)
+		}
+		if err = b.PrepareChecklistSet(); err != nil {
+			t.Fatal(err)
+		}
+		t.Logf("got pairs: %d", len(a.set[0].Pairs))
+		for _, p := range a.set[0].Pairs {
+			if p.Local.Addr.Equal(p.Remote.Addr) {
+				t.Error("local address is equal to remote")
+			}
+			t.Logf("%s -> %s [%d]", p.Local.Addr, p.Remote.Addr, p.Priority)
+		}
+	})
 }
