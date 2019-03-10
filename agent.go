@@ -84,6 +84,7 @@ type agentTransaction struct {
 	pair      int
 	nominate  bool
 	id        transactionID
+	rto       time.Duration
 	// attempt int32
 	// calls   int32
 	// start   time.Time
@@ -198,6 +199,17 @@ type Agent struct {
 
 	maxChecks int
 	ta        time.Duration // section 15.2, Ta
+}
+
+func (a *Agent) localCandidateByAddr(addr Addr) (candidate localUDPCandidate, ok bool) {
+	for _, cs := range a.localCandidates {
+		for i := range cs {
+			if addr.Equal(cs[i].candidate.Addr) {
+				return cs[i], true
+			}
+		}
+	}
+	return localUDPCandidate{}, false
 }
 
 // Close immediately stops all transactions and frees underlying resources.
@@ -316,15 +328,8 @@ func (a *Agent) rto() time.Duration {
 
 const defaultAgentTa = time.Millisecond * 50
 
-type ctxSTUNClient interface {
-	Start(m *stun.Message) error
-}
-
 // context wraps resources for candidate.
 type context struct {
-	// STUN Agent, TURN client, socket, etc.
-	stun ctxSTUNClient // local (client) -> remote (server)
-
 	localUsername  string // LFRAG
 	localPassword  string // LPASS
 	remoteUsername string // RFRAG
@@ -332,10 +337,6 @@ type context struct {
 
 	localPref int // local candidate address preference
 }
-
-func (c *context) SendSTUN(m *stun.Message) error { return c.stun.Start(m) }
-
-func (c *context) Close() error { return nil }
 
 func (a *Agent) updateState() {
 	var (
@@ -600,6 +601,34 @@ func (a *Agent) processBindingResponse(p *Pair, m *stun.Message, raddr Addr) err
 	return nil
 }
 
+var errCandidateNotFound = errors.New("candidate not found")
+var errUnsupportedProtocol = errors.New("protocol not supported")
+
+func (a *Agent) startBinding(p *Pair, m *stun.Message) error {
+	if p.Remote.Addr.Proto != ct.UDP {
+		return errUnsupportedProtocol
+	}
+	c, ok := a.localCandidateByAddr(p.Local.Addr)
+	if !ok {
+		return errCandidateNotFound
+	}
+	a.t[m.TransactionID] = &agentTransaction{
+		id:  m.TransactionID,
+		rto: a.rto(),
+	}
+	udpAddr := &net.UDPAddr{
+		IP:   p.Remote.Addr.IP,
+		Port: p.Remote.Addr.Port,
+	}
+	_, err := c.conn.WriteTo(m.Raw, udpAddr)
+	// TODO: Add write deadline.
+	// TODO: Check n if needed.
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 // startCheck initializes connectivity check for pair.
 func (a *Agent) startCheck(p *Pair) error {
 	// Once the agent has picked a candidate pair for which a connectivity
@@ -621,7 +650,7 @@ func (a *Agent) startCheck(p *Pair) error {
 		&username, &priority, &role,
 		&integrity, stun.Fingerprint,
 	)
-	return ctx.stun.Start(m)
+	return a.startBinding(p, m)
 }
 
 func randUint64(r io.Reader) (uint64, error) {

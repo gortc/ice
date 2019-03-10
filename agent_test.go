@@ -51,7 +51,37 @@ type stunMock struct {
 	start func(m *stun.Message) error
 }
 
-func (s *stunMock) Start(m *stun.Message) error { return s.start(m) }
+func (s *stunMock) ReadFrom(p []byte) (n int, addr net.Addr, err error) {
+	panic("implement me")
+}
+
+func (s *stunMock) Close() error {
+	panic("implement me")
+}
+
+func (s *stunMock) LocalAddr() net.Addr {
+	panic("implement me")
+}
+
+func (s *stunMock) SetDeadline(t time.Time) error {
+	panic("implement me")
+}
+
+func (s *stunMock) SetReadDeadline(t time.Time) error {
+	panic("implement me")
+}
+
+func (s *stunMock) SetWriteDeadline(t time.Time) error {
+	panic("implement me")
+}
+
+func (s *stunMock) WriteTo(buf []byte, addr net.Addr) (int, error) {
+	m := &stun.Message{Raw: buf}
+	if err := m.Decode(); err != nil {
+		return 0, err
+	}
+	return len(m.Raw), s.start(m)
+}
 
 func mustInit(t *testing.T, a *Agent) {
 	t.Helper()
@@ -183,8 +213,16 @@ func TestAgent_check(t *testing.T) {
 		remoteUsername: "RFRAG",
 		remotePassword: "RPASS",
 		localPassword:  "LPASS",
-		stun:           stunAgent,
 		localPref:      10,
+	}
+	a.localCandidates = [][]localUDPCandidate{
+		{
+			{
+				candidate:  pair.Local,
+				conn:       stunAgent,
+				preference: 10,
+			},
+		},
 	}
 	t.Run("OK", func(t *testing.T) {
 		checkMessage := func(t *testing.T, m *stun.Message) {
