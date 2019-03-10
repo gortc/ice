@@ -170,18 +170,20 @@ func getFoundationKey(f []byte) foundationKey {
 	return k
 }
 
-func (s foundationSet) Contains(f []byte) bool {
+func assertFoundationLength(f []byte) {
 	if len(f) > maxPairFoundationBytes {
 		panic("length of foundation is greater that maximum")
 	}
+}
+
+func (s foundationSet) Contains(f []byte) bool {
+	assertFoundationLength(f)
 	_, ok := s[getFoundationKey(f)]
 	return ok
 }
 
 func (s foundationSet) Add(f []byte) {
-	if len(f) > maxPairFoundationBytes {
-		panic("length of foundation is greater that maximum")
-	}
+	assertFoundationLength(f)
 	s[getFoundationKey(f)] = struct{}{}
 }
 
