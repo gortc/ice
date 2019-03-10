@@ -81,7 +81,7 @@ type agentTransaction struct {
 	checklist int
 	pair      int
 	nominate  bool
-	// id      transactionID
+	id        transactionID
 	// attempt int32
 	// calls   int32
 	// start   time.Time
@@ -235,8 +235,8 @@ func (a *Agent) pickPair() (pairID int, err error) {
 	if a.checklist == noChecklist {
 		return noPair, errNoChecklist
 	}
-	// Step 1. Picking from triggered startCheck queue.
-	// TODO: Implement triggered-startCheck queue.
+	// Step 1. Picking from triggered check queue.
+	// TODO: Implement triggered-check queue.
 	// Step 2. Handling frozen pairs.
 	pairs := a.set[a.checklist].Pairs
 	anyWaiting := false
@@ -302,11 +302,11 @@ func (a *Agent) processUDP(buf []byte, addr net.UDPAddr) error {
 
 var errNonSymmetricAddr = errors.New("peer address is not symmetric")
 
-func (a *Agent) handleBindingResponse(t *agentTransaction, p *Pair, m *stun.Message, raddr Addr) {
+func (a *Agent) handleBindingResponse(t *agentTransaction, p *Pair, m *stun.Message, raddr Addr) error {
 	if err := a.processBindingResponse(p, m, raddr); err != nil {
 		// TODO: Handle nomination failure.
 		a.setPairState(t.checklist, t.pair, PairFailed)
-		return
+		return err
 	}
 	a.setPairState(t.checklist, t.pair, PairSucceeded)
 	// Adding to valid list.
@@ -333,9 +333,11 @@ func (a *Agent) handleBindingResponse(t *agentTransaction, p *Pair, m *stun.Mess
 		validPair.Nominated = true
 	}
 	cl.Valid = append(cl.Valid, validPair)
+	a.set[t.checklist] = cl
 
 	// Updating checklist states.
 	a.updateState()
+	return nil
 }
 
 func (a *Agent) processBindingResponse(p *Pair, m *stun.Message, raddr Addr) error {
