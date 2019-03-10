@@ -7,11 +7,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net"
 
-	"github.com/gortc/stun"
-
 	ct "github.com/gortc/ice/candidate"
+	"github.com/gortc/stun"
 )
 
 // Role represents ICE agent role, which can be controlling or controlled.
@@ -67,6 +67,21 @@ type ChecklistSet []Checklist
 
 const noChecklist = -1
 
+type transactionID [stun.TransactionIDSize]byte
+
+// agentTransaction represents transaction in progress.
+//
+// Concurrent access is invalid.
+type agentTransaction struct {
+	// id      transactionID
+	// attempt int32
+	// calls   int32
+	// start   time.Time
+	// rto     time.Duration
+	// raw     []byte
+	// ...
+}
+
 // Agent implements ICE Agent.
 type Agent struct {
 	set         ChecklistSet
@@ -77,6 +92,7 @@ type Agent struct {
 	role        Role
 	state       State
 	rand        io.Reader
+	t           map[transactionID]*agentTransaction
 }
 
 type ctxSTUNClient interface {
@@ -157,6 +173,7 @@ var errPeerReflexiveNotImplemented = errors.New("adding peer-reflexive candidate
 func (a *Agent) addPeerReflexive(p *Pair, addr Addr) error {
 	// TODO: Implement.
 	// See https://tools.ietf.org/html/rfc8445#section-7.2.5.3.1
+	log.Println("peer reflexive:", p, addr)
 	return errPeerReflexiveNotImplemented
 }
 
@@ -367,6 +384,9 @@ func (a *Agent) nextChecklist() (c Checklist, id int) {
 
 // init sets initial states for checklist sets.
 func (a *Agent) init() error {
+	if a.t == nil {
+		a.t = make(map[transactionID]*agentTransaction)
+	}
 	if a.rand == nil {
 		a.rand = rand.Reader
 	}
