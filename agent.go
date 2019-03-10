@@ -350,7 +350,6 @@ func (a *Agent) rto() time.Duration {
 	if rto < minRTO {
 		rto = minRTO
 	}
-	fmt.Println("total:", total, "waiting:", n)
 	return rto
 }
 
