@@ -277,11 +277,11 @@ func (a *Agent) pickPair() (pairID int, err error) {
 	return noPair, errNoPair
 }
 
-var errNotSTUN = errors.New("packet is not STUN")
+var errNotSTUNMessage = errors.New("packet is not STUN Message")
 
 func (a *Agent) processUDP(buf []byte, addr net.UDPAddr) error {
 	if !stun.IsMessage(buf) {
-		return errNotSTUN
+		return errNotSTUNMessage
 	}
 	m := &stun.Message{Raw: buf}
 	if err := m.Decode(); err != nil {

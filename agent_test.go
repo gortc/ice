@@ -63,7 +63,7 @@ func TestAgent_processUDP(t *testing.T) {
 		a := &Agent{}
 		mustInit(t, a)
 		t.Run("Not STUN", func(t *testing.T) {
-			if err := a.processUDP([]byte{1, 2}, net.UDPAddr{}); err != errNotSTUN {
+			if err := a.processUDP([]byte{1, 2}, net.UDPAddr{}); err != errNotSTUNMessage {
 				t.Errorf("should be notStun, got %v", err)
 			}
 		})
@@ -80,7 +80,7 @@ func TestAgent_processUDP(t *testing.T) {
 			if err := a.processUDP(m.Raw[:len(m.Raw)-2], net.UDPAddr{}); err == nil {
 				t.Error("should error")
 			} else {
-				if err == errNotSTUN {
+				if err == errNotSTUNMessage {
 					t.Error("unexpected notStun err")
 				}
 				t.Log(err)
