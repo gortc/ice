@@ -176,7 +176,7 @@ func TestChecklist_Limit(t *testing.T) {
 	}
 	c.Limit(3)
 	if c.Len() != 3 {
-		t.Error("unexpected length ")
+		t.Error("unexpected length")
 	}
 }
 
