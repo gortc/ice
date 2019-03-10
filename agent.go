@@ -14,6 +14,8 @@ import (
 	ct "github.com/gortc/ice/candidate"
 	"github.com/gortc/ice/gather"
 	"github.com/gortc/stun"
+
+	"go.uber.org/zap"
 )
 
 // Role represents ICE agent role, which can be controlling or controlled.
@@ -80,6 +82,7 @@ func (t transactionID) AddTo(m *stun.Message) error {
 //
 // Concurrent access is invalid.
 type agentTransaction struct {
+	pairKey   contextKey
 	checklist int
 	pair      int
 	nominate  bool
@@ -117,9 +120,32 @@ func NewAgent(opts ...AgentOption) (*Agent, error) {
 }
 
 type localUDPCandidate struct {
+	log        *zap.Logger
 	candidate  Candidate
 	preference int
 	conn       net.PacketConn
+	stream     int
+}
+
+func (c *localUDPCandidate) Close() error {
+	return c.conn.Close()
+}
+
+func (c *localUDPCandidate) readUntilClose(a *Agent) {
+	buf := make([]byte, 1024)
+	for {
+		n, addr, err := c.conn.ReadFrom(buf)
+		if err != nil {
+			break
+		}
+		udpAddr, ok := addr.(*net.UDPAddr)
+		if !ok {
+			break
+		}
+		if err := a.processUDP(buf[:n], c, udpAddr); err != nil {
+			c.log.Error("processUDP failed", zap.Error(err))
+		}
+	}
 }
 
 type gathererOptions struct {
@@ -241,6 +267,9 @@ func (a *Agent) GatherCandidatesForStream(streamID int) error {
 	if err != nil {
 		return err
 	}
+	for i := range candidates {
+		go candidates[i].readUntilClose(a)
+	}
 	a.localCandidates = append(a.localCandidates, candidates)
 	return nil
 }
@@ -312,7 +341,6 @@ func (a *Agent) rto() time.Duration {
 	for _, c := range a.set {
 		for i := range c.Pairs {
 			total++
-			log.Println("state:", c.Pairs[i].State)
 			if c.Pairs[i].State.In(PairWaiting, PairInProgress) {
 				n++
 			}
@@ -493,13 +521,17 @@ func (a *Agent) pickPair() (pairID int, err error) {
 
 var errNotSTUNMessage = errors.New("packet is not STUN Message")
 
-func (a *Agent) processUDP(buf []byte, addr *net.UDPAddr) error {
+func (a *Agent) processUDP(buf []byte, c *localUDPCandidate, addr *net.UDPAddr) error {
 	if !stun.IsMessage(buf) {
 		return errNotSTUNMessage
 	}
 	m := &stun.Message{Raw: buf}
 	if err := m.Decode(); err != nil {
 		return err
+	}
+	raddr := Addr{Port: addr.Port, IP: addr.IP, Proto: ct.UDP}
+	if m.Type == stun.BindingRequest {
+		return a.handleBindingRequest(m, c, raddr)
 	}
 	t, ok := a.t[m.TransactionID]
 	if !ok {
@@ -509,8 +541,36 @@ func (a *Agent) processUDP(buf []byte, addr *net.UDPAddr) error {
 	p := a.set[t.checklist].Pairs[t.pair]
 	switch m.Type {
 	case stun.BindingSuccess, stun.BindingError:
-		return a.processBindingResponse(&p, m, Addr{Port: addr.Port, IP: addr.IP, Proto: ct.UDP})
+		return a.handleBindingResponse(t, &p, m, raddr)
 	}
+	return nil
+}
+
+func (a *Agent) remoteCandidateByAddr(addr Addr) (Candidate, bool) {
+	for _, s := range a.remoteCandidates {
+		for i := range s {
+			if s[i].Addr.Equal(addr) {
+				return s[i], true
+			}
+		}
+	}
+	return Candidate{}, false
+}
+
+func (a *Agent) handleBindingRequest(m *stun.Message, c *localUDPCandidate, raddr Addr) error {
+	remoteCandidate, ok := a.remoteCandidateByAddr(raddr)
+	if !ok {
+		return errCandidateNotFound
+	}
+	pair := Pair{
+		Local:  c.candidate,
+		Remote: remoteCandidate,
+	}
+	pair.SetFoundation()
+	pair.SetPriority(a.role)
+	list := a.set[c.stream]
+	list.Pairs = append(list.Pairs, pair)
+	list.Sort()
 	return nil
 }
 
@@ -613,8 +673,9 @@ func (a *Agent) startBinding(p *Pair, m *stun.Message) error {
 		return errCandidateNotFound
 	}
 	a.t[m.TransactionID] = &agentTransaction{
-		id:  m.TransactionID,
-		rto: a.rto(),
+		id:      m.TransactionID,
+		rto:     a.rto(),
+		pairKey: pairContextKey(p),
 	}
 	udpAddr := &net.UDPAddr{
 		IP:   p.Remote.Addr.IP,

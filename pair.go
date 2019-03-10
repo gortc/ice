@@ -130,6 +130,17 @@ func (p *Pair) SetFoundation() {
 	p.Foundation = f
 }
 
+func (p *Pair) SetPriority(role Role) {
+	var (
+		controlling = p.Local.Priority
+		controlled  = p.Remote.Priority
+	)
+	if role == Controlled {
+		controlling, controlled = controlled, controlling
+	}
+	p.Priority = PairPriority(controlling, controlled)
+}
+
 // Pairs is ordered slice of Pair elements.
 type Pairs []Pair
 
