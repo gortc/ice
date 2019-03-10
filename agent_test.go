@@ -51,6 +51,106 @@ type stunMock struct {
 
 func (s *stunMock) Start(m *stun.Message) error { return s.start(m) }
 
+func mustInit(t *testing.T, a *Agent) {
+	t.Helper()
+	if err := a.init(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestAgent_processUDP(t *testing.T) {
+	t.Run("Blank", func(t *testing.T) {
+		a := &Agent{}
+		mustInit(t, a)
+		t.Run("Not STUN", func(t *testing.T) {
+			if err := a.processUDP([]byte{1, 2}, net.UDPAddr{}); err != errNotSTUN {
+				t.Errorf("should be notStun, got %v", err)
+			}
+		})
+		t.Run("No transaction", func(t *testing.T) {
+			m := stun.MustBuild(stun.TransactionID, stun.BindingSuccess)
+			if err := a.processUDP(m.Raw, net.UDPAddr{}); err != nil {
+				t.Error(err)
+			}
+		})
+		t.Run("Bad STUN", func(t *testing.T) {
+			m := stun.MustBuild(stun.TransactionID, stun.BindingSuccess, stun.XORMappedAddress{
+				IP: net.IPv4(1, 2, 3, 4),
+			}, stun.Fingerprint)
+			if err := a.processUDP(m.Raw[:len(m.Raw)-2], net.UDPAddr{}); err == nil {
+				t.Error("should error")
+			} else {
+				if err == errNotSTUN {
+					t.Error("unexpected notStun err")
+				}
+				t.Log(err)
+			}
+		})
+	})
+}
+
+func TestAgent_handleBindingResponse(t *testing.T) {
+	cl0 := Checklist{
+		Pairs: Pairs{
+			{
+				Local: Candidate{
+					Addr: Addr{
+						Port: 10230,
+						IP:   net.IPv4(10, 0, 0, 2),
+					},
+				},
+				Remote: Candidate{
+					Addr: Addr{
+						Port: 31230,
+						IP:   net.IPv4(10, 0, 0, 1),
+					},
+				},
+				Foundation: []byte{1, 3},
+				Priority:   1234,
+			},
+		},
+	}
+	a := &Agent{
+		set: ChecklistSet{cl0},
+	}
+	mustInit(t, a)
+	_, cID := a.nextChecklist()
+	a.checklist = cID
+	pID, err := a.pickPair()
+	if err != nil {
+		t.Fatal(err)
+	}
+	pair := a.set[a.checklist].Pairs[pID]
+	at := &agentTransaction{
+		id:        stun.NewTransactionID(),
+		pair:      0,
+		checklist: 0,
+	}
+	ctx := context{
+		localUsername:  "LFRAG",
+		remoteUsername: "RFRAG",
+		remotePassword: "RPASS",
+		localPassword:  "LPASS",
+		localPref:      10,
+	}
+	a.ctx[pairContextKey(&pair)] = ctx
+	integrity := stun.NewShortTermIntegrity(ctx.remotePassword)
+	xorAddr := stun.XORMappedAddress{
+		IP:   pair.Local.Addr.IP,
+		Port: pair.Local.Addr.Port,
+	}
+	msg := stun.MustBuild(at.id, stun.BindingSuccess,
+		stun.NewUsername("RFRAG:LFRAG"), &xorAddr,
+		integrity, stun.Fingerprint,
+	)
+	if err := a.handleBindingResponse(at, &pair, msg, pair.Remote.Addr); err != nil {
+		t.Fatal(err)
+	}
+	if len(a.set[0].Valid) == 0 {
+		t.Error("valid set is empty")
+	}
+}
+
 func TestAgent_check(t *testing.T) {
 	a := Agent{}
 	var c Checklist
