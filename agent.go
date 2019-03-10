@@ -80,6 +80,7 @@ func (t transactionID) AddTo(m *stun.Message) error {
 type agentTransaction struct {
 	checklist int
 	pair      int
+	nominate  bool
 	// id      transactionID
 	// attempt int32
 	// calls   int32
@@ -303,10 +304,38 @@ var errNonSymmetricAddr = errors.New("peer address is not symmetric")
 
 func (a *Agent) handleBindingResponse(t *agentTransaction, p *Pair, m *stun.Message, raddr Addr) {
 	if err := a.processBindingResponse(p, m, raddr); err != nil {
+		// TODO: Handle nomination failure.
 		a.setPairState(t.checklist, t.pair, PairFailed)
 		return
 	}
 	a.setPairState(t.checklist, t.pair, PairSucceeded)
+	// Adding to valid list.
+	// TODO: Construct valid pair as in https://tools.ietf.org/html/rfc8445#section-7.2.5.3.2
+	// Handling case "1" only, when valid pair is equal to generated pair p.
+	validPair := *p
+	cl := a.set[t.checklist]
+
+	// Setting all candidate paris with same foundation to "Waiting".
+	for cID, c := range a.set {
+		for i := range c.Pairs {
+			if bytes.Equal(c.Pairs[i].Foundation, p.Foundation) {
+				a.setPairState(cID, i, PairWaiting)
+				continue
+			}
+			if bytes.Equal(c.Pairs[i].Foundation, validPair.Foundation) {
+				a.setPairState(cID, i, PairWaiting)
+			}
+		}
+	}
+
+	// Nominating.
+	if t.nominate {
+		validPair.Nominated = true
+	}
+	cl.Valid = append(cl.Valid, validPair)
+
+	// Updating checklist states.
+	a.updateState()
 }
 
 func (a *Agent) processBindingResponse(p *Pair, m *stun.Message, raddr Addr) error {

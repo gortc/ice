@@ -39,8 +39,9 @@ type Pair struct {
 	Local      Candidate `json:"local"`
 	Remote     Candidate `json:"remote"`
 	Priority   int64     `json:"priority"`
-	State      PairState `json:"state"`
 	Foundation []byte    `json:"foundation"`
+	State      PairState `json:"state"`
+	Nominated  bool      `json:"nominated"`
 }
 
 // Equal returns true if pair p equals to pair b.

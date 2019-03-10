@@ -17,8 +17,10 @@ import (
 // 	a checklist (e.g., due to detection of peer-reflexive candidates),
 // 	the agent will re-perform these steps for the updated checklist.
 type Checklist struct {
-	Pairs Pairs          `json:"pairs,omitempty"`
-	State ChecklistState `json:"state"`
+	Pairs     Pairs          `json:"pairs,omitempty"`
+	Valid     Pairs          `json:"valid,omitempty"`
+	Triggered Pairs          `json:"triggered,omitempty"`
+	State     ChecklistState `json:"state"`
 }
 
 // Equal returns true if checklist c equals to checklist b.
