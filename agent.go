@@ -558,6 +558,9 @@ func (a *Agent) remoteCandidateByAddr(addr Addr) (Candidate, bool) {
 }
 
 func (a *Agent) handleBindingRequest(m *stun.Message, c *localUDPCandidate, raddr Addr) error {
+	if err := stun.Fingerprint.Check(m); err != nil {
+		return err
+	}
 	remoteCandidate, ok := a.remoteCandidateByAddr(raddr)
 	if !ok {
 		return errCandidateNotFound
