@@ -63,13 +63,13 @@ func TestAgent_processUDP(t *testing.T) {
 		a := &Agent{}
 		mustInit(t, a)
 		t.Run("Not STUN", func(t *testing.T) {
-			if err := a.processUDP([]byte{1, 2}, net.UDPAddr{}); err != errNotSTUNMessage {
+			if err := a.processUDP([]byte{1, 2}, &net.UDPAddr{}); err != errNotSTUNMessage {
 				t.Errorf("should be notStun, got %v", err)
 			}
 		})
 		t.Run("No transaction", func(t *testing.T) {
 			m := stun.MustBuild(stun.TransactionID, stun.BindingSuccess)
-			if err := a.processUDP(m.Raw, net.UDPAddr{}); err != nil {
+			if err := a.processUDP(m.Raw, &net.UDPAddr{}); err != nil {
 				t.Error(err)
 			}
 		})
@@ -77,7 +77,7 @@ func TestAgent_processUDP(t *testing.T) {
 			m := stun.MustBuild(stun.TransactionID, stun.BindingSuccess, stun.XORMappedAddress{
 				IP: net.IPv4(1, 2, 3, 4),
 			}, stun.Fingerprint)
-			if err := a.processUDP(m.Raw[:len(m.Raw)-2], net.UDPAddr{}); err == nil {
+			if err := a.processUDP(m.Raw[:len(m.Raw)-2], &net.UDPAddr{}); err == nil {
 				t.Error("should error")
 			} else {
 				if err == errNotSTUNMessage {

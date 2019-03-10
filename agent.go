@@ -279,7 +279,7 @@ func (a *Agent) pickPair() (pairID int, err error) {
 
 var errNotSTUNMessage = errors.New("packet is not STUN Message")
 
-func (a *Agent) processUDP(buf []byte, addr net.UDPAddr) error {
+func (a *Agent) processUDP(buf []byte, addr *net.UDPAddr) error {
 	if !stun.IsMessage(buf) {
 		return errNotSTUNMessage
 	}
