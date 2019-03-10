@@ -152,10 +152,12 @@ func (e unrecoverableErrorCodeErr) Error() string {
 	return fmt.Sprintf("peer responded with unrecoverable error code %d", e.Code)
 }
 
+var errPeerReflexiveNotImplemented = errors.New("adding peer-reflexive candidates is not implemented")
+
 func (a *Agent) addPeerReflexive(p *Pair, addr Addr) error {
 	// TODO: Implement.
 	// See https://tools.ietf.org/html/rfc8445#section-7.2.5.3.1
-	return nil
+	return errPeerReflexiveNotImplemented
 }
 
 const maxPairFoundationBytes = 64
