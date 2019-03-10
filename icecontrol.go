@@ -2,30 +2,30 @@ package ice
 
 import "github.com/gortc/stun"
 
-// tieBreaker is common helper for ICE-{CONTROLLED,CONTROLLING}
+// tiebreaker is common helper for ICE-{CONTROLLED,CONTROLLING}
 // and represents the so-called tie-breaker number.
-type tieBreaker uint64
+type tiebreaker uint64
 
-const tieBreakerSize = 8 // 64 bit
+const tiebreakerSize = 8 // 64 bit
 
-// AddToAs adds tieBreaker value to m as t attribute.
-func (a tieBreaker) AddToAs(m *stun.Message, t stun.AttrType) error {
-	v := make([]byte, tieBreakerSize)
+// AddToAs adds tiebreaker value to m as t attribute.
+func (a tiebreaker) AddToAs(m *stun.Message, t stun.AttrType) error {
+	v := make([]byte, tiebreakerSize)
 	bin.PutUint64(v, uint64(a))
 	m.Add(t, v)
 	return nil
 }
 
-// GetFromAs decodes tieBreaker value in message getting it as for t type.
-func (a *tieBreaker) GetFromAs(m *stun.Message, t stun.AttrType) error {
+// GetFromAs decodes tiebreaker value in message getting it as for t type.
+func (a *tiebreaker) GetFromAs(m *stun.Message, t stun.AttrType) error {
 	v, err := m.Get(t)
 	if err != nil {
 		return err
 	}
-	if err = stun.CheckSize(t, len(v), tieBreakerSize); err != nil {
+	if err = stun.CheckSize(t, len(v), tiebreakerSize); err != nil {
 		return err
 	}
-	*a = tieBreaker(bin.Uint64(v))
+	*a = tiebreaker(bin.Uint64(v))
 	return nil
 }
 
@@ -34,12 +34,12 @@ type AttrControlled uint64
 
 // AddTo adds ICE-CONTROLLED to message.
 func (c AttrControlled) AddTo(m *stun.Message) error {
-	return tieBreaker(c).AddToAs(m, stun.AttrICEControlled)
+	return tiebreaker(c).AddToAs(m, stun.AttrICEControlled)
 }
 
 // GetFrom decodes ICE-CONTROLLED from message.
 func (c *AttrControlled) GetFrom(m *stun.Message) error {
-	return (*tieBreaker)(c).GetFromAs(m, stun.AttrICEControlled)
+	return (*tiebreaker)(c).GetFromAs(m, stun.AttrICEControlled)
 }
 
 // AttrControlling represents ICE-CONTROLLING attribute.
@@ -47,10 +47,37 @@ type AttrControlling uint64
 
 // AddTo adds ICE-CONTROLLING to message.
 func (c AttrControlling) AddTo(m *stun.Message) error {
-	return tieBreaker(c).AddToAs(m, stun.AttrICEControlling)
+	return tiebreaker(c).AddToAs(m, stun.AttrICEControlling)
 }
 
 // GetFrom decodes ICE-CONTROLLING from message.
 func (c *AttrControlling) GetFrom(m *stun.Message) error {
-	return (*tieBreaker)(c).GetFromAs(m, stun.AttrICEControlling)
+	return (*tiebreaker)(c).GetFromAs(m, stun.AttrICEControlling)
+}
+
+// AttrControl is helper that wraps ICE-{CONTROLLED,CONTROLLING}.
+type AttrControl struct {
+	Role       Role
+	Tiebreaker uint64
+}
+
+// AddTo adds ICE-CONTROLLED or ICE-CONTROLLING attribute depending on Role.
+func (c AttrControl) AddTo(m *stun.Message) error {
+	if c.Role == Controlling {
+		return tiebreaker(c.Tiebreaker).AddToAs(m, stun.AttrICEControlling)
+	}
+	return tiebreaker(c.Tiebreaker).AddToAs(m, stun.AttrICEControlled)
+}
+
+// GetFrom decodes Role and Tiebreaker value from message.
+func (c *AttrControl) GetFrom(m *stun.Message) error {
+	if m.Contains(stun.AttrICEControlling) {
+		c.Role = Controlling
+		return (*tiebreaker)(&c.Tiebreaker).GetFromAs(m, stun.AttrICEControlling)
+	}
+	if m.Contains(stun.AttrICEControlled) {
+		c.Role = Controlled
+		return (*tiebreaker)(&c.Tiebreaker).GetFromAs(m, stun.AttrICEControlled)
+	}
+	return stun.ErrAttributeNotFound
 }
