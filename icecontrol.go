@@ -3,7 +3,7 @@ package ice
 import "github.com/gortc/stun"
 
 // tiebreaker is common helper for ICE-{CONTROLLED,CONTROLLING}
-// and represents the so-called tie-breaker number.
+// and represents the so-called tiebreaker number.
 type tiebreaker uint64
 
 const tiebreakerSize = 8 // 64 bit
