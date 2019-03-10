@@ -904,11 +904,22 @@ func TestAgent(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if _, err := a.LocalCandidates(); err != errNoStreamFound {
+		t.Errorf("expected not to find stream, got %v", err)
+	}
 	if err = a.GatherCandidates(); err != nil {
 		t.Errorf("failed to gather candidates: %v", err)
 	}
 	if err = a.GatherCandidates(); err != errStreamAlreadyExist {
 		t.Errorf("expected stream alrady exist error, got %v", err)
+	}
+	localCandidates, err := a.LocalCandidates()
+	if err != nil {
+		t.Errorf("failed to get local candidates: %v", err)
+	}
+	t.Logf("got %d candidate(s)", len(localCandidates))
+	if len(localCandidates) == 0 {
+		t.Error("no local candidates provided")
 	}
 	if err = a.Close(); err != nil {
 		t.Fatalf("failed to close: %v", err)

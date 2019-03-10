@@ -225,6 +225,25 @@ func (a *Agent) GatherCandidatesForStream(streamID int) error {
 	return nil
 }
 
+// LocalCandidates returns list of local candidates for first data stream.
+func (a *Agent) LocalCandidates() ([]Candidate, error) {
+	return a.LocalCandidatesForStream(defaultStreamID)
+}
+
+var errNoStreamFound = errors.New("data stream with provided id not found")
+
+// LocalCandidates returns list of local candidates for stream.
+func (a *Agent) LocalCandidatesForStream(streamID int) ([]Candidate, error) {
+	if len(a.localCandidates) <= streamID {
+		return nil, errNoStreamFound
+	}
+	var localCandidates []Candidate
+	for i := range a.localCandidates[streamID] {
+		localCandidates = append(localCandidates, a.localCandidates[streamID][i].candidate)
+	}
+	return localCandidates, nil
+}
+
 // AddRemoteCandidates adds remote candidate list, associating them with first data
 // stream.
 func (a *Agent) AddRemoteCandidates(c []Candidate) error {
