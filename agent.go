@@ -88,8 +88,10 @@ type agentTransaction struct {
 	pair      int
 	nominate  bool
 	id        transactionID
-	rto       time.Duration
 	start     time.Time
+	rto       time.Duration
+	deadline  time.Time
+	raw       []byte
 	// attempt int32
 	// calls   int32
 	// start   time.Time
@@ -704,11 +706,15 @@ func (a *Agent) startBinding(p *Pair, m *stun.Message, t time.Time) error {
 	if !ok {
 		return errCandidateNotFound
 	}
+	rto := a.rto()
 	a.t[m.TransactionID] = &agentTransaction{
-		id:      m.TransactionID,
-		rto:     a.rto(),
-		start:   t,
-		pairKey: pairContextKey(p),
+		id:        m.TransactionID,
+		start:     t,
+		rto:       rto,
+		deadline:  t.Add(rto),
+		pairKey:   pairContextKey(p),
+		raw:       m.Raw,
+		checklist: a.checklist,
 	}
 	udpAddr := &net.UDPAddr{
 		IP:   p.Remote.Addr.IP,
