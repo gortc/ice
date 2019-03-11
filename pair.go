@@ -36,16 +36,23 @@ func PairPriority(controlling, controlled int) int64 {
 
 // Pair wraps two candidates, one is local, other is remote.
 type Pair struct {
-	Local      Candidate `json:"local"`
-	Remote     Candidate `json:"remote"`
-	Priority   int64     `json:"priority"`
-	Foundation []byte    `json:"foundation"`
-	State      PairState `json:"state"`
-	Nominated  bool      `json:"nominated"`
+	Local       Candidate `json:"local"`
+	Remote      Candidate `json:"remote"`
+	Priority    int64     `json:"priority"`
+	Foundation  []byte    `json:"foundation"`
+	State       PairState `json:"state"`
+	Nominated   bool      `json:"nominated"`
+	ComponentID int       `json:"component_id"`
 }
 
 // Equal returns true if pair p equals to pair b.
 func (p *Pair) Equal(b *Pair) bool {
+	if p.ComponentID != b.ComponentID {
+		return false
+	}
+	if p.Nominated != b.Nominated {
+		return false
+	}
 	if p.State != b.State {
 		return false
 	}
@@ -144,9 +151,16 @@ func (p *Pair) SetPriority(role Role) {
 // Pairs is ordered slice of Pair elements.
 type Pairs []Pair
 
-func (p Pairs) Len() int           { return len(p) }
-func (p Pairs) Less(i, j int) bool { return p[i].Priority > p[j].Priority }
-func (p Pairs) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
+func (p Pairs) Len() int { return len(p) }
+
+func (p Pairs) Less(i, j int) bool {
+	if p[i].Priority == p[j].Priority {
+		return p[i].ComponentID < p[j].ComponentID
+	}
+	return p[i].Priority > p[j].Priority
+}
+
+func (p Pairs) Swap(i, j int) { p[i], p[j] = p[j], p[i] }
 
 func sameFamily(a, b net.IP) bool {
 	return len(a.To4()) == len(b.To4())
@@ -155,7 +169,7 @@ func sameFamily(a, b net.IP) bool {
 // NewPairs pairs each local candidate with each remote candidate for the same
 // component of the same data stream with the same IP address family. Candidates
 // should be sorted by priority in descending order, which is default order for
-// the Candidates type. Populates only Local and Remote fields of Pair.
+// the Candidates type. Populates only Local, Remote and ComponentID fields of Pair.
 //
 // See RFC 8445 Section 6.1.2.2.
 func NewPairs(local, remote Candidates) Pairs {
@@ -179,8 +193,9 @@ func NewPairs(local, remote Candidates) Pairs {
 				}
 			}
 			pair := Pair{
-				Local:  local[l],
-				Remote: remote[r],
+				Local:       local[l],
+				Remote:      remote[r],
+				ComponentID: local[l].ComponentID,
 			}
 			pair.SetFoundation()
 			p = append(p, pair)

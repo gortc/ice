@@ -46,19 +46,34 @@ func TestPairs(t *testing.T) {
 		{Priority: 4},
 		{Priority: 3},
 		{Priority: 100},
-		{Priority: 0},
+		{Priority: 0, ComponentID: 2},
+		{Priority: 0, ComponentID: 1},
 		{Priority: 4},
 		{Priority: 5},
 		{Priority: 9},
 		{Priority: 8},
 	}
 	sort.Sort(pairs)
-	expectedOrder := []int64{
-		100, 9, 8, 5, 4, 4, 3, 0,
+	expectedOrder := []struct {
+		priority  int64
+		component int
+	}{
+		{100, 0},
+		{9, 0},
+		{8, 0},
+		{5, 0},
+		{4, 0},
+		{4, 0},
+		{3, 0},
+		{0, 1},
+		{0, 2},
 	}
 	for i, p := range pairs {
-		if p.Priority != expectedOrder[i] {
+		if p.Priority != expectedOrder[i].priority {
 			t.Errorf("p[%d]: %d (got) != %d (expected)", i, p.Priority, expectedOrder[i])
+		}
+		if p.ComponentID != expectedOrder[i].component {
+			t.Errorf("p[%d] component: %d (got) != %d (expected)", i, p.Priority, expectedOrder[i])
 		}
 	}
 }
