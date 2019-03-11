@@ -106,6 +106,13 @@ func withGatherer(g candidateGatherer) AgentOption {
 	return func(a *Agent) { a.gatherer = g }
 }
 
+// WithRole sets agent mode to Controlling or Controlled.
+func WithRole(r Role) AgentOption {
+	return func(a *Agent) {
+		a.role = r
+	}
+}
+
 const defaultMaxChecks = 100
 
 func NewAgent(opts ...AgentOption) (*Agent, error) {

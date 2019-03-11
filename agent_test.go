@@ -1132,11 +1132,10 @@ func TestAgent(t *testing.T) {
 				}
 				return []localUDPCandidate{c}, nil
 			},
-		}))
+		}), WithRole(Controlled))
 		if err != nil {
 			t.Fatal(err)
 		}
-		b.role = Controlled
 		defer mustClose(t, b)
 		if err = b.GatherCandidates(); err != nil {
 			t.Errorf("failed to gather candidates: %v", err)
