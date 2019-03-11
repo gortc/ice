@@ -19,7 +19,7 @@ import (
 type Checklist struct {
 	Pairs     Pairs          `json:"pairs,omitempty"`
 	Valid     Pairs          `json:"valid,omitempty"`
-	Triggered Pairs          `json:"triggered,omitempty"`
+	Triggered Pairs          `json:"triggered,omitempty"` // FIFO
 	State     ChecklistState `json:"state"`
 }
 
