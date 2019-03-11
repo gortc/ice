@@ -158,7 +158,7 @@ func TestAgent_handleBindingResponse(t *testing.T) {
 		pair:      0,
 		checklist: 0,
 	}
-	ctx := context{
+	ctx := candidateCtx{
 		localUsername:  "LFRAG",
 		remoteUsername: "RFRAG",
 		remotePassword: "RPASS",
@@ -208,7 +208,7 @@ func TestAgent_check(t *testing.T) {
 		IP:   pair.Local.Addr.IP,
 		Port: pair.Local.Addr.Port,
 	}
-	a.ctx[pairContextKey(pair)] = context{
+	a.ctx[pairContextKey(pair)] = candidateCtx{
 		localUsername:  "LFRAG",
 		remoteUsername: "RFRAG",
 		remotePassword: "RPASS",
@@ -224,6 +224,7 @@ func TestAgent_check(t *testing.T) {
 			},
 		},
 	}
+	now := time.Time{}
 	t.Run("OK", func(t *testing.T) {
 		checkMessage := func(t *testing.T, m *stun.Message) {
 			t.Helper()
@@ -265,7 +266,7 @@ func TestAgent_check(t *testing.T) {
 				tid = m.TransactionID
 				return nil
 			}
-			if err := a.startCheck(pair); err != nil {
+			if err := a.startCheck(pair, now); err != nil {
 				t.Fatal("failed to startCheck", err)
 			}
 			resp := stun.MustBuild(stun.NewTransactionIDSetter(tid), stun.BindingSuccess, xorAddr, integrity, stun.Fingerprint)
@@ -294,7 +295,7 @@ func TestAgent_check(t *testing.T) {
 				tid = m.TransactionID
 				return nil
 			}
-			if err := a.startCheck(pair); err != nil {
+			if err := a.startCheck(pair, now); err != nil {
 				t.Fatal("failed to startCheck", err)
 			}
 			resp := stun.MustBuild(stun.NewTransactionIDSetter(tid), stun.BindingSuccess, xorAddr, integrity, stun.Fingerprint)
@@ -308,7 +309,7 @@ func TestAgent_check(t *testing.T) {
 		stunAgent.start = func(m *stun.Message) error {
 			return stunErr
 		}
-		if err := a.startCheck(pair); err != stunErr {
+		if err := a.startCheck(pair, now); err != stunErr {
 			t.Fatalf("unexpected error: %v", err)
 		}
 	})
@@ -319,7 +320,7 @@ func TestAgent_check(t *testing.T) {
 			return nil
 		}
 		codeErr := unrecoverableErrorCodeErr{Code: stun.CodeBadRequest}
-		if err := a.startCheck(pair); err != nil {
+		if err := a.startCheck(pair, now); err != nil {
 			t.Fatal(err)
 		}
 		resp := stun.MustBuild(stun.NewTransactionIDSetter(tid), stun.BindingError, stun.CodeBadRequest, integrity, stun.Fingerprint)
@@ -333,7 +334,7 @@ func TestAgent_check(t *testing.T) {
 			tid = m.TransactionID
 			return nil
 		}
-		if err := a.startCheck(pair); err != nil {
+		if err := a.startCheck(pair, now); err != nil {
 			t.Fatal(err)
 		}
 		resp := stun.MustBuild(tid, stun.BindingError, integrity, stun.Fingerprint)
@@ -348,7 +349,7 @@ func TestAgent_check(t *testing.T) {
 			return nil
 		}
 		resp := stun.MustBuild(tid, stun.BindingError, stun.CodeRoleConflict, xorAddr, integrity, stun.Fingerprint)
-		if err := a.startCheck(pair); err != nil {
+		if err := a.startCheck(pair, now); err != nil {
 			t.Fatal(err)
 		}
 		if err := a.processBindingResponse(pair, resp, pair.Remote.Addr); err != errRoleConflict {
@@ -361,7 +362,7 @@ func TestAgent_check(t *testing.T) {
 			tid = m.TransactionID
 			return nil
 		}
-		if err := a.startCheck(pair); err != nil {
+		if err := a.startCheck(pair, now); err != nil {
 			t.Fatal(err)
 		}
 		i := stun.NewShortTermIntegrity("RPASS+BAD")
@@ -376,7 +377,7 @@ func TestAgent_check(t *testing.T) {
 			tid = m.TransactionID
 			return nil
 		}
-		if err := a.startCheck(pair); err != nil {
+		if err := a.startCheck(pair, now); err != nil {
 			t.Fatal(err)
 		}
 		resp := stun.MustBuild(tid, stun.BindingSuccess, integrity)
@@ -390,7 +391,7 @@ func TestAgent_check(t *testing.T) {
 			tid = m.TransactionID
 			return nil
 		}
-		if err := a.startCheck(pair); err != nil {
+		if err := a.startCheck(pair, now); err != nil {
 			t.Fatal(err)
 		}
 		badFP := stun.RawAttribute{Type: stun.AttrFingerprint, Value: []byte{'b', 'a', 'd', 0}}
@@ -404,7 +405,7 @@ func TestAgent_check(t *testing.T) {
 				tid = m.TransactionID
 				return nil
 			}
-			if err := a.startCheck(pair); err != nil {
+			if err := a.startCheck(pair, now); err != nil {
 				t.Fatal(err)
 			}
 			i := stun.NewShortTermIntegrity("RPASS+BAD")
@@ -422,7 +423,7 @@ func TestAgent_check(t *testing.T) {
 			return nil
 		}
 		typeErr := unexpectedResponseTypeErr{Type: stun.BindingRequest}
-		if err := a.startCheck(pair); err != nil {
+		if err := a.startCheck(pair, now); err != nil {
 			t.Fatal(err)
 		}
 		resp := stun.MustBuild(tid, stun.BindingRequest, stun.CodeBadRequest, integrity, stun.Fingerprint)

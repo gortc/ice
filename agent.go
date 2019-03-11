@@ -2,6 +2,7 @@ package ice
 
 import (
 	"bytes"
+	"context"
 	"crypto/rand"
 	"encoding/binary"
 	"errors"
@@ -56,7 +57,7 @@ const (
 	Controlled
 )
 
-// contextKey is map key for candidate pair context.
+// contextKey is map key for candidate pair candidateCtx.
 type contextKey struct {
 	LocalPort   int
 	RemotePort  int
@@ -88,6 +89,7 @@ type agentTransaction struct {
 	nominate  bool
 	id        transactionID
 	rto       time.Duration
+	start     time.Time
 	// attempt int32
 	// calls   int32
 	// start   time.Time
@@ -213,7 +215,7 @@ type Agent struct {
 	set              ChecklistSet
 	checklist        int // index in set or -1
 	foundations      [][]byte
-	ctx              map[contextKey]context
+	ctx              map[contextKey]candidateCtx
 	tiebreaker       uint64
 	role             Role
 	state            State
@@ -225,6 +227,34 @@ type Agent struct {
 
 	maxChecks int
 	ta        time.Duration // section 15.2, Ta
+}
+
+// tick of ta.
+func (a *Agent) tick(t time.Time) error {
+	pID, err := a.pickPair()
+	if err == errNoPair {
+		_, cID := a.nextChecklist()
+		if cID == noChecklist {
+			return errNoChecklist
+		}
+		a.checklist = cID
+		return a.tick(t)
+	}
+	pair := a.set[a.checklist].Pairs[pID]
+	a.setPairState(a.checklist, pID, PairInProgress)
+	return a.startCheck(&pair, t)
+}
+
+// Conclude starts connectivity checks and returns when ICE is fully concluded.
+func (a *Agent) Conclude(ctx context.Context) error {
+	// TODO: Start async job.
+	ticker := time.NewTicker(a.ta)
+	for t := range ticker.C {
+		if err := a.tick(t); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (a *Agent) localCandidateByAddr(addr Addr) (candidate localUDPCandidate, ok bool) {
@@ -355,8 +385,8 @@ func (a *Agent) rto() time.Duration {
 
 const defaultAgentTa = time.Millisecond * 50
 
-// context wraps resources for candidate.
-type context struct {
+// candidateCtx wraps resources for candidate.
+type candidateCtx struct {
 	localUsername  string // LFRAG
 	localPassword  string // LPASS
 	remoteUsername string // RFRAG
@@ -666,7 +696,7 @@ func (a *Agent) processBindingResponse(p *Pair, m *stun.Message, raddr Addr) err
 var errCandidateNotFound = errors.New("candidate not found")
 var errUnsupportedProtocol = errors.New("protocol not supported")
 
-func (a *Agent) startBinding(p *Pair, m *stun.Message) error {
+func (a *Agent) startBinding(p *Pair, m *stun.Message, t time.Time) error {
 	if p.Remote.Addr.Proto != ct.UDP {
 		return errUnsupportedProtocol
 	}
@@ -677,6 +707,7 @@ func (a *Agent) startBinding(p *Pair, m *stun.Message) error {
 	a.t[m.TransactionID] = &agentTransaction{
 		id:      m.TransactionID,
 		rto:     a.rto(),
+		start:   t,
 		pairKey: pairContextKey(p),
 	}
 	udpAddr := &net.UDPAddr{
@@ -693,7 +724,7 @@ func (a *Agent) startBinding(p *Pair, m *stun.Message) error {
 }
 
 // startCheck initializes connectivity check for pair.
-func (a *Agent) startCheck(p *Pair) error {
+func (a *Agent) startCheck(p *Pair, t time.Time) error {
 	// Once the agent has picked a candidate pair for which a connectivity
 	// check is to be performed, the agent starts a check and sends the
 	// Binding request from the base associated with the local candidate of
@@ -713,7 +744,7 @@ func (a *Agent) startCheck(p *Pair) error {
 		&username, &priority, &role,
 		&integrity, stun.Fingerprint,
 	)
-	return a.startBinding(p, m)
+	return a.startBinding(p, m, t)
 }
 
 func randUint64(r io.Reader) (uint64, error) {
@@ -763,7 +794,7 @@ func (a *Agent) init() error {
 		a.rand = rand.Reader
 	}
 	if a.ctx == nil {
-		a.ctx = make(map[contextKey]context)
+		a.ctx = make(map[contextKey]candidateCtx)
 	}
 	// Generating random tiebreaker number.
 	tbValue, err := randUint64(a.rand)
@@ -780,9 +811,9 @@ func (a *Agent) init() error {
 			if foundations.Contains(pair.Foundation) {
 				continue
 			}
-			// Initializing context.
+			// Initializing candidateCtx.
 			k := pairContextKey(&pair)
-			a.ctx[k] = context{}
+			a.ctx[k] = candidateCtx{}
 			foundations.Add(pair.Foundation)
 			a.foundations = append(a.foundations, pair.Foundation)
 		}
