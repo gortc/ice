@@ -148,25 +148,18 @@ func TestAgent_handleBindingResponse(t *testing.T) {
 	mustInit(t, a)
 	_, cID := a.nextChecklist()
 	a.checklist = cID
-	pID, err := a.pickPair()
+	pair, err := a.pickPair()
 	if err != nil {
 		t.Fatal(err)
 	}
-	pair := a.set[a.checklist].Pairs[pID]
 	at := &agentTransaction{
 		id:        stun.NewTransactionID(),
 		pair:      0,
 		checklist: 0,
 	}
-	ctx := candidateCtx{
-		localUsername:  "LFRAG",
-		remoteUsername: "RFRAG",
-		remotePassword: "RPASS",
-		localPassword:  "LPASS",
-		localPref:      10,
-	}
-	a.ctx[pairContextKey(&pair)] = ctx
-	integrity := stun.NewShortTermIntegrity(ctx.remotePassword)
+	a.SetRemoteCredentials("RFRAG", "RPASS")
+	a.SetLocalCredentials("LFRAG", "LPASS")
+	integrity := stun.NewShortTermIntegrity("RPASS")
 	xorAddr := stun.XORMappedAddress{
 		IP:   pair.Local.Addr.IP,
 		Port: pair.Local.Addr.Port,
@@ -175,7 +168,7 @@ func TestAgent_handleBindingResponse(t *testing.T) {
 		stun.NewUsername("RFRAG:LFRAG"), &xorAddr,
 		integrity, stun.Fingerprint,
 	)
-	if err := a.handleBindingResponse(at, &pair, msg, pair.Remote.Addr); err != nil {
+	if err := a.handleBindingResponse(at, pair, msg, pair.Remote.Addr); err != nil {
 		t.Fatal(err)
 	}
 	if len(a.set[0].Valid) == 0 {
@@ -184,7 +177,7 @@ func TestAgent_handleBindingResponse(t *testing.T) {
 }
 
 func TestAgent_check(t *testing.T) {
-	a := Agent{}
+	a := &Agent{}
 	var c Checklist
 	loadGoldenJSON(t, &c, "checklist.json")
 	a.set = append(a.set, c)
@@ -202,28 +195,23 @@ func TestAgent_check(t *testing.T) {
 	a.updateState()
 	t.Logf("state: %s", a.state)
 	pair := &a.set[0].Pairs[0]
+	pair.Local.LocalPreference = 10
 	integrity := stun.NewShortTermIntegrity("RPASS")
 	stunAgent := &stunMock{}
 	xorAddr := &stun.XORMappedAddress{
 		IP:   pair.Local.Addr.IP,
 		Port: pair.Local.Addr.Port,
 	}
-	a.ctx[pairContextKey(pair)] = candidateCtx{
-		localUsername:  "LFRAG",
-		remoteUsername: "RFRAG",
-		remotePassword: "RPASS",
-		localPassword:  "LPASS",
-		localPref:      10,
-	}
 	a.localCandidates = [][]localUDPCandidate{
 		{
 			{
-				candidate:  pair.Local,
-				conn:       stunAgent,
-				preference: 10,
+				candidate: pair.Local,
+				conn:      stunAgent,
 			},
 		},
 	}
+	a.SetRemoteCredentials("RFRAG", "RPASS")
+	a.SetLocalCredentials("LFRAG", "LPASS")
 	now := time.Time{}
 	t.Run("OK", func(t *testing.T) {
 		checkMessage := func(t *testing.T, m *stun.Message) {
@@ -548,34 +536,31 @@ func TestAgent_pickPair(t *testing.T) {
 		Name      string
 		Set       ChecklistSet
 		Checklist int
-		ID        int
+		Pair      Pair
 		Err       error
 	}{
 		{
 			Name:      "no checklist",
 			Checklist: noChecklist,
-			ID:        noPair,
 			Err:       errNoChecklist,
 		},
 		{
 			Name:      "no pair",
 			Checklist: 0,
-			ID:        noPair,
 			Err:       errNoPair,
 			Set:       ChecklistSet{{}},
 		},
 		{
 			Name:      "first",
 			Checklist: 0,
-			ID:        0,
 			Set: ChecklistSet{
 				{Pairs: Pairs{{State: PairWaiting}}},
 			},
+			Pair: Pair{State: PairInProgress},
 		},
 		{
 			Name:      "all failed",
 			Checklist: 0,
-			ID:        noPair,
 			Err:       errNoPair,
 			Set: ChecklistSet{
 				{Pairs: Pairs{{State: PairFailed}}},
@@ -584,26 +569,25 @@ func TestAgent_pickPair(t *testing.T) {
 		{
 			Name:      "simple unfreeze",
 			Checklist: 0,
-			ID:        0,
 			Set: ChecklistSet{
 				{Pairs: Pairs{{State: PairFrozen}}},
 			},
+			Pair: Pair{State: PairInProgress},
 		},
 		{
 			Name:      "simple no unfreeze",
 			Checklist: 0,
-			ID:        1,
 			Set: ChecklistSet{
 				{Pairs: Pairs{
-					{State: PairFrozen, Foundation: []byte{1}},
-					{State: PairWaiting, Foundation: []byte{1}},
+					{State: PairFrozen, Foundation: []byte{1}, Priority: 10},
+					{State: PairWaiting, Foundation: []byte{1}, Priority: 9},
 				}},
 			},
+			Pair: Pair{State: PairInProgress, Foundation: []byte{1}, Priority: 9},
 		},
 		{
 			Name:      "no unfreeze from other checklist",
 			Checklist: 1,
-			ID:        noPair,
 			Err:       errNoPair,
 			Set: ChecklistSet{
 				{Pairs: Pairs{
@@ -617,12 +601,12 @@ func TestAgent_pickPair(t *testing.T) {
 	} {
 		t.Run(tc.Name, func(t *testing.T) {
 			a := &Agent{set: tc.Set, checklist: tc.Checklist}
-			id, err := a.pickPair()
+			pair, err := a.pickPair()
 			if err != tc.Err {
 				t.Errorf("pickPair error %v (got) != %v (expected)", err, tc.Err)
 			}
-			if id != tc.ID {
-				t.Errorf("pickPair id %d (got) != %d (expected)", id, tc.ID)
+			if tc.Err == nil && !tc.Pair.Equal(pair) {
+				t.Errorf("picked wrong pair: {%s}", pair.State)
 			}
 		})
 	}
@@ -636,12 +620,9 @@ func TestAgent_pickPair(t *testing.T) {
 				}},
 			},
 		}
-		id, err := a.pickPair()
+		_, err := a.pickPair()
 		if err != nil {
 			t.Fatal(err)
-		}
-		if id != 0 {
-			t.Error("bad pair picked")
 		}
 		if a.set[0].Pairs[1].State != PairFrozen {
 			t.Error("second pair should be frozen")
@@ -674,11 +655,11 @@ func BenchmarkAgent_pickPair(b *testing.B) {
 
 		b.ReportAllocs()
 		for i := 0; i < b.N; i++ {
-			id, err := a.pickPair()
+			_, err := a.pickPair()
 			if err != nil {
 				b.Fatal(err)
 			}
-			a.setPairState(a.checklist, id, PairWaiting)
+			a.setPairState(a.checklist, 0, PairWaiting)
 		}
 	})
 	b.Run("Frozen", func(b *testing.B) {
@@ -725,11 +706,11 @@ func BenchmarkAgent_pickPair(b *testing.B) {
 		}
 		b.ReportAllocs()
 		for i := 0; i < b.N; i++ {
-			id, err := a.pickPair()
+			_, err := a.pickPair()
 			if err != nil {
 				b.Fatal(err)
 			}
-			a.setPairState(a.checklist, id, PairFrozen)
+			a.setPairState(a.checklist, 0, PairFrozen)
 		}
 	})
 }

@@ -131,11 +131,10 @@ func NewAgent(opts ...AgentOption) (*Agent, error) {
 }
 
 type localUDPCandidate struct {
-	log        *zap.Logger
-	candidate  Candidate
-	preference int
-	conn       net.PacketConn
-	stream     int
+	log       *zap.Logger
+	candidate Candidate
+	conn      net.PacketConn
+	stream    int
 }
 
 func (c *localUDPCandidate) Close() error {
@@ -172,7 +171,6 @@ type Agent struct {
 	set              ChecklistSet
 	checklist        int // index in set or -1
 	foundations      [][]byte
-	ctx              map[contextKey]candidateCtx
 	tiebreaker       uint64
 	role             Role
 	state            State
@@ -182,13 +180,35 @@ type Agent struct {
 	remoteCandidates [][]Candidate
 	gatherer         candidateGatherer
 
+	localUsername  string
+	localPassword  string
+	remoteUsername string
+	remotePassword string
+
 	maxChecks int
 	ta        time.Duration // section 15.2, Ta
 }
 
+func (a *Agent) SetLocalCredentials(username, password string) {
+	a.localUsername = username
+	a.localPassword = password
+}
+
+// Username returns local username fragment.
+func (a *Agent) Username() string { return a.localUsername }
+
+// Password returns local password.
+func (a *Agent) Password() string { return a.localPassword }
+
+// SetRemoteCredentials sets ufrag and password for remote candidate.
+func (a *Agent) SetRemoteCredentials(username, password string) {
+	a.remoteUsername = username
+	a.remotePassword = password
+}
+
 // tick of ta.
 func (a *Agent) tick(t time.Time) error {
-	pID, err := a.pickPair()
+	pair, err := a.pickPair()
 	if err == errNoPair {
 		_, cID := a.nextChecklist()
 		if cID == noChecklist {
@@ -197,9 +217,7 @@ func (a *Agent) tick(t time.Time) error {
 		a.checklist = cID
 		return a.tick(t)
 	}
-	pair := a.set[a.checklist].Pairs[pID]
-	a.setPairState(a.checklist, pID, PairInProgress)
-	return a.startCheck(&pair, t)
+	return a.startCheck(pair, t)
 }
 
 // Conclude starts connectivity checks and returns when ICE is fully concluded.
@@ -342,16 +360,6 @@ func (a *Agent) rto() time.Duration {
 
 const defaultAgentTa = time.Millisecond * 50
 
-// candidateCtx wraps resources for candidate.
-type candidateCtx struct {
-	localUsername  string // LFRAG
-	localPassword  string // LPASS
-	remoteUsername string // RFRAG
-	remotePassword string // RPASS
-
-	localPref int // local candidate address preference
-}
-
 func (a *Agent) updateState() {
 	var (
 		state        = Running
@@ -457,14 +465,20 @@ var (
 	errNoChecklist = errors.New("no checklist is active")
 )
 
-const noPair = -1
-
-func (a *Agent) pickPair() (pairID int, err error) {
+func (a *Agent) pickPair() (*Pair, error) {
 	if a.checklist == noChecklist {
-		return noPair, errNoChecklist
+		return nil, errNoChecklist
 	}
 	// Step 1. Picking from triggered check queue.
-	// TODO: Implement triggered-check queue.
+	if len(a.set[a.checklist].Triggered) > 0 {
+		// FIFO. Picking top first.
+		triggered := a.set[a.checklist].Triggered
+		pair := triggered[len(triggered)-1]
+		pair.State = PairInProgress
+		triggered = triggered[:len(triggered)-1]
+		a.set[a.checklist].Triggered = triggered
+		return &pair, nil
+	}
 	// Step 2. Handling frozen pairs.
 	pairs := a.set[a.checklist].Pairs
 	anyWaiting := false
@@ -498,11 +512,11 @@ func (a *Agent) pickPair() (pairID int, err error) {
 	for id := range pairs {
 		if pairs[id].State == PairWaiting {
 			a.setPairState(a.checklist, id, PairInProgress)
-			return id, nil
+			return &pairs[id], nil
 		}
 	}
 	// Step 4. No check could be performed.
-	return noPair, errNoPair
+	return nil, errNoPair
 }
 
 var errNotSTUNMessage = errors.New("packet is not STUN Message")
@@ -604,8 +618,7 @@ func (a *Agent) handleBindingResponse(t *agentTransaction, p *Pair, m *stun.Mess
 }
 
 func (a *Agent) processBindingResponse(p *Pair, m *stun.Message, raddr Addr) error {
-	ctx := a.ctx[pairContextKey(p)]
-	integrity := stun.NewShortTermIntegrity(ctx.remotePassword)
+	integrity := stun.NewShortTermIntegrity(a.remotePassword)
 	if err := stun.Fingerprint.Check(m); err != nil {
 		if err == stun.ErrAttributeNotFound {
 			return errFingerprintNotFound
@@ -691,16 +704,16 @@ func (a *Agent) startCheck(p *Pair, t time.Time) error {
 	// Binding request from the base associated with the local candidate of
 	// the pair to the remote candidate of the pair, as described in
 	// Section 7.2.4.
-	ctx := a.ctx[pairContextKey(p)]
 	// See RFC 8445 Section 7.2.2. Forming Credentials.
-	integrity := stun.NewShortTermIntegrity(ctx.remotePassword)
+	integrity := stun.NewShortTermIntegrity(a.remotePassword)
 	// The PRIORITY attribute MUST be included in a Binding request and be
 	// set to the value computed by the algorithm in Section 5.1.2 for the
 	// local candidate, but with the candidate type preference of peer-
 	// reflexive candidates.
-	priority := PriorityAttr(Priority(TypePreference(ct.PeerReflexive), ctx.localPref, p.Local.ComponentID))
+	localPref := p.Local.LocalPreference
+	priority := PriorityAttr(Priority(TypePreference(ct.PeerReflexive), localPref, p.Local.ComponentID))
 	role := AttrControl{Role: a.role, Tiebreaker: a.tiebreaker}
-	username := stun.NewUsername(ctx.remoteUsername + ":" + ctx.localUsername)
+	username := stun.NewUsername(a.remoteUsername + ":" + a.localUsername)
 	m := stun.MustBuild(stun.TransactionID, stun.BindingRequest,
 		&username, &priority, &role,
 		&integrity, stun.Fingerprint,
@@ -754,9 +767,6 @@ func (a *Agent) init() error {
 	if a.rand == nil {
 		a.rand = rand.Reader
 	}
-	if a.ctx == nil {
-		a.ctx = make(map[contextKey]candidateCtx)
-	}
 	// Generating random tiebreaker number.
 	tbValue, err := randUint64(a.rand)
 	if err != nil {
@@ -772,9 +782,6 @@ func (a *Agent) init() error {
 			if foundations.Contains(pair.Foundation) {
 				continue
 			}
-			// Initializing candidateCtx.
-			k := pairContextKey(&pair)
-			a.ctx[k] = candidateCtx{}
 			foundations.Add(pair.Foundation)
 			a.foundations = append(a.foundations, pair.Foundation)
 		}

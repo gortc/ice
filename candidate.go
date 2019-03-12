@@ -43,13 +43,14 @@ func (c Candidates) Swap(i, j int)      { c[i], c[j] = c[j], c[i] }
 // for receipt of data. Candidates also have properties — their type
 // (server reflexive, relayed, or host), priority, foundation, and base.
 type Candidate struct {
-	Addr        Addr    `json:"addr"`
-	Type        ct.Type `json:"type"`
-	Priority    int     `json:"priority"`
-	Foundation  []byte  `json:"foundation"`
-	Base        Addr    `json:"base,omitempty"`
-	Related     Addr    `json:"related,omitempty"`
-	ComponentID int     `json:"component_id"`
+	Addr            Addr    `json:"addr"`
+	Type            ct.Type `json:"type"`
+	Priority        int     `json:"priority"`
+	Foundation      []byte  `json:"foundation"`
+	Base            Addr    `json:"base,omitempty"`
+	Related         Addr    `json:"related,omitempty"`
+	ComponentID     int     `json:"component_id"`
+	LocalPreference int     `json:"local_preference"`
 }
 
 // Equal reports whether c equals to b.
@@ -58,6 +59,12 @@ func (c *Candidate) Equal(b *Candidate) bool {
 		return false
 	}
 	if c.Priority != b.Priority {
+		return false
+	}
+	if c.LocalPreference != b.LocalPreference {
+		return false
+	}
+	if c.ComponentID != b.ComponentID {
 		return false
 	}
 	if !c.Addr.Equal(b.Addr) {
@@ -71,9 +78,6 @@ func (c *Candidate) Equal(b *Candidate) bool {
 	}
 	if !c.Related.Equal(b.Related) {
 		// Should we skip that check?
-		return false
-	}
-	if c.ComponentID != b.ComponentID {
 		return false
 	}
 	return true

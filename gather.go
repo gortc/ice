@@ -50,14 +50,14 @@ func (g systemCandidateGatherer) gatherUDP(opt gathererOptions) ([]localUDPCandi
 					Port:  a.Port,
 					Proto: ct.UDP,
 				},
-				ComponentID: component,
+				ComponentID:     component,
+				LocalPreference: addr.LocalPreference,
 			}
 			c.Foundation = Foundation(&c, Addr{})
 			c.Priority = Priority(TypePreference(c.Type), addr.LocalPreference, c.ComponentID)
 			candidates = append(candidates, localUDPCandidate{
-				candidate:  c,
-				conn:       l,
-				preference: addr.LocalPreference,
+				candidate: c,
+				conn:      l,
 			})
 		}
 	}
