@@ -144,6 +144,16 @@ func TestAgent_handleBindingResponse(t *testing.T) {
 	}
 	a := &Agent{
 		set: ChecklistSet{cl0},
+		localCandidates: [][]localUDPCandidate{
+			{
+				{candidate: Candidate{
+					Addr: Addr{
+						Port: 10230,
+						IP:   net.IPv4(10, 0, 0, 2),
+					},
+				}},
+			},
+		},
 	}
 	mustInit(t, a)
 	_, cID := a.nextChecklist()
@@ -258,7 +268,7 @@ func TestAgent_check(t *testing.T) {
 				t.Fatal("failed to startCheck", err)
 			}
 			resp := stun.MustBuild(stun.NewTransactionIDSetter(tid), stun.BindingSuccess, xorAddr, integrity, stun.Fingerprint)
-			if err := a.processBindingResponse(pair, resp, pair.Remote.Addr); err != nil {
+			if err := a.processBindingResponse(nil, pair, resp, pair.Remote.Addr); err != nil {
 				t.Error(err)
 			}
 		})
@@ -287,7 +297,7 @@ func TestAgent_check(t *testing.T) {
 				t.Fatal("failed to startCheck", err)
 			}
 			resp := stun.MustBuild(stun.NewTransactionIDSetter(tid), stun.BindingSuccess, xorAddr, integrity, stun.Fingerprint)
-			if err := a.processBindingResponse(pair, resp, pair.Remote.Addr); err != nil {
+			if err := a.processBindingResponse(nil, pair, resp, pair.Remote.Addr); err != nil {
 				t.Error(err)
 			}
 		})
@@ -312,7 +322,7 @@ func TestAgent_check(t *testing.T) {
 			t.Fatal(err)
 		}
 		resp := stun.MustBuild(stun.NewTransactionIDSetter(tid), stun.BindingError, stun.CodeBadRequest, integrity, stun.Fingerprint)
-		if err := a.processBindingResponse(pair, resp, pair.Remote.Addr); err != codeErr {
+		if err := a.processBindingResponse(nil, pair, resp, pair.Remote.Addr); err != codeErr {
 			t.Fatalf("unexpected error %v", err)
 		}
 	})
@@ -326,7 +336,7 @@ func TestAgent_check(t *testing.T) {
 			t.Fatal(err)
 		}
 		resp := stun.MustBuild(tid, stun.BindingError, integrity, stun.Fingerprint)
-		if err := a.processBindingResponse(pair, resp, pair.Remote.Addr); err == nil {
+		if err := a.processBindingResponse(nil, pair, resp, pair.Remote.Addr); err == nil {
 			t.Fatal("unexpected success")
 		}
 	})
@@ -340,7 +350,7 @@ func TestAgent_check(t *testing.T) {
 		if err := a.startCheck(pair, now); err != nil {
 			t.Fatal(err)
 		}
-		if err := a.processBindingResponse(pair, resp, pair.Remote.Addr); err != errRoleConflict {
+		if err := a.processBindingResponse(nil, pair, resp, pair.Remote.Addr); err != errRoleConflict {
 			t.Fatalf("unexpected error: %v", err)
 		}
 	})
@@ -355,7 +365,7 @@ func TestAgent_check(t *testing.T) {
 		}
 		i := stun.NewShortTermIntegrity("RPASS+BAD")
 		resp := stun.MustBuild(tid, stun.BindingSuccess, i, xorAddr, stun.Fingerprint)
-		if err := a.processBindingResponse(pair, resp, pair.Remote.Addr); err != stun.ErrIntegrityMismatch {
+		if err := a.processBindingResponse(nil, pair, resp, pair.Remote.Addr); err != stun.ErrIntegrityMismatch {
 			t.Fatalf("unexpected error: %v", err)
 		}
 	})
@@ -369,7 +379,7 @@ func TestAgent_check(t *testing.T) {
 			t.Fatal(err)
 		}
 		resp := stun.MustBuild(tid, stun.BindingSuccess, integrity)
-		if err := a.processBindingResponse(pair, resp, pair.Remote.Addr); err != errFingerprintNotFound {
+		if err := a.processBindingResponse(nil, pair, resp, pair.Remote.Addr); err != errFingerprintNotFound {
 			t.Fatalf("unexpected error: %v", err)
 		}
 	})
@@ -384,7 +394,7 @@ func TestAgent_check(t *testing.T) {
 		}
 		badFP := stun.RawAttribute{Type: stun.AttrFingerprint, Value: []byte{'b', 'a', 'd', 0}}
 		resp := stun.MustBuild(tid, stun.BindingSuccess, integrity, badFP)
-		if err := a.processBindingResponse(pair, resp, pair.Remote.Addr); err != stun.ErrFingerprintMismatch {
+		if err := a.processBindingResponse(nil, pair, resp, pair.Remote.Addr); err != stun.ErrFingerprintMismatch {
 			t.Fatalf("unexpected error: %v", err)
 		}
 		t.Run("Should be done before integrity startCheck", func(t *testing.T) {
@@ -399,7 +409,7 @@ func TestAgent_check(t *testing.T) {
 			i := stun.NewShortTermIntegrity("RPASS+BAD")
 			badFP := stun.RawAttribute{Type: stun.AttrFingerprint, Value: []byte{'b', 'a', 'd', 0}}
 			resp := stun.MustBuild(tid, stun.BindingSuccess, i, badFP)
-			if err := a.processBindingResponse(pair, resp, pair.Remote.Addr); err != stun.ErrFingerprintMismatch {
+			if err := a.processBindingResponse(nil, pair, resp, pair.Remote.Addr); err != stun.ErrFingerprintMismatch {
 				t.Fatalf("unexpected error: %v", err)
 			}
 		})
@@ -415,7 +425,7 @@ func TestAgent_check(t *testing.T) {
 			t.Fatal(err)
 		}
 		resp := stun.MustBuild(tid, stun.BindingRequest, stun.CodeBadRequest, integrity, stun.Fingerprint)
-		if err := a.processBindingResponse(pair, resp, pair.Remote.Addr); err != typeErr {
+		if err := a.processBindingResponse(nil, pair, resp, pair.Remote.Addr); err != typeErr {
 			t.Fatalf("unexpected success")
 		}
 	})
@@ -796,32 +806,6 @@ func TestAgent_init(t *testing.T) {
 	loadGoldenJSON(t, &cGolden, "checklist_updated.json")
 	if !cGolden.Equal(a.set[0]) {
 		t.Error("got unexpected checklist after init")
-	}
-}
-
-func BenchmarkPairContextKey(b *testing.B) {
-	p := Pair{
-		Local: Candidate{
-			Addr: Addr{
-				IP:    net.IPv4(127, 0, 0, 1),
-				Port:  31223,
-				Proto: candidate.UDP,
-			},
-		},
-		Remote: Candidate{
-			Addr: Addr{
-				IP:    net.IPv4(127, 0, 0, 1),
-				Port:  31223,
-				Proto: candidate.UDP,
-			},
-		},
-	}
-	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
-		k := pairContextKey(&p)
-		if k.LocalPort == 0 {
-			b.Fatal("bad port")
-		}
 	}
 }
 

@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net"
 	"time"
 
@@ -57,16 +56,6 @@ const (
 	Controlled
 )
 
-// contextKey is map key for candidate pair candidateCtx.
-type contextKey struct {
-	LocalPort   int
-	RemotePort  int
-	LocalIP     [net.IPv6len]byte
-	RemoteIP    [net.IPv6len]byte
-	LocalProto  ct.Protocol
-	RemoteProto ct.Protocol
-}
-
 // ChecklistSet represents ordered list of checklists.
 type ChecklistSet []Checklist
 
@@ -83,9 +72,9 @@ func (t transactionID) AddTo(m *stun.Message) error {
 //
 // Concurrent access is invalid.
 type agentTransaction struct {
-	pairKey   contextKey
 	checklist int
 	pair      int
+	priority  int
 	nominate  bool
 	id        transactionID
 	start     time.Time
@@ -385,18 +374,6 @@ func (a *Agent) updateState() {
 	a.state = state
 }
 
-func pairContextKey(p *Pair) contextKey {
-	k := contextKey{
-		LocalProto:  p.Local.Addr.Proto,
-		LocalPort:   p.Local.Addr.Port,
-		RemoteProto: p.Remote.Addr.Proto,
-		RemotePort:  p.Remote.Addr.Port,
-	}
-	copy(k.LocalIP[:], p.Remote.Addr.IP)
-	copy(k.RemoteIP[:], p.Remote.Addr.IP)
-	return k
-}
-
 var (
 	errFingerprintNotFound = errors.New("STUN message fingerprint attribute not found")
 	errRoleConflict        = errors.New("role conflict")
@@ -414,13 +391,25 @@ func (e unrecoverableErrorCodeErr) Error() string {
 	return fmt.Sprintf("peer responded with unrecoverable error code %d", e.Code)
 }
 
-var errPeerReflexiveNotImplemented = errors.New("adding peer-reflexive candidates is not implemented")
-
-func (a *Agent) addPeerReflexive(p *Pair, addr Addr) error {
-	// TODO: Implement.
+func (a *Agent) addPeerReflexive(t *agentTransaction, p *Pair, addr Addr) error {
 	// See https://tools.ietf.org/html/rfc8445#section-7.2.5.3.1
-	log.Println("peer reflexive:", p, addr)
-	return errPeerReflexiveNotImplemented
+	pr := Candidate{
+		Type:     ct.PeerReflexive,
+		Base:     p.Local.Addr,
+		Addr:     addr,
+		Priority: t.priority,
+	}
+	pr.Foundation = Foundation(&pr, Addr{})
+	c, ok := a.localCandidateByAddr(p.Local.Addr)
+	if !ok {
+		return errCandidateNotFound
+	}
+	a.localCandidates[c.stream] = append(a.localCandidates[c.stream], localUDPCandidate{
+		conn:      c.conn,
+		candidate: pr,
+		stream:    c.stream,
+	})
+	return nil
 }
 
 const maxPairFoundationBytes = 64
@@ -580,7 +569,7 @@ func (a *Agent) handleBindingRequest(m *stun.Message, c *localUDPCandidate, radd
 var errNonSymmetricAddr = errors.New("peer address is not symmetric")
 
 func (a *Agent) handleBindingResponse(t *agentTransaction, p *Pair, m *stun.Message, raddr Addr) error {
-	if err := a.processBindingResponse(p, m, raddr); err != nil {
+	if err := a.processBindingResponse(t, p, m, raddr); err != nil {
 		// TODO: Handle nomination failure.
 		a.setPairState(t.checklist, t.pair, PairFailed)
 		return err
@@ -617,7 +606,7 @@ func (a *Agent) handleBindingResponse(t *agentTransaction, p *Pair, m *stun.Mess
 	return nil
 }
 
-func (a *Agent) processBindingResponse(p *Pair, m *stun.Message, raddr Addr) error {
+func (a *Agent) processBindingResponse(t *agentTransaction, p *Pair, m *stun.Message, raddr Addr) error {
 	integrity := stun.NewShortTermIntegrity(a.remotePassword)
 	if err := stun.Fingerprint.Check(m); err != nil {
 		if err == stun.ErrAttributeNotFound {
@@ -649,14 +638,13 @@ func (a *Agent) processBindingResponse(p *Pair, m *stun.Message, raddr Addr) err
 		return fmt.Errorf("can't get xor mapped address: %v", err)
 	}
 	addr := Addr{
-		IP:    xAddr.IP,
+		IP:    make(net.IP, len(xAddr.IP)),
 		Port:  xAddr.Port,
 		Proto: p.Local.Addr.Proto,
 	}
-	// TODO: Check all other local addresses.
-	if !addr.Equal(p.Local.Addr) {
-		// TODO: Copy xAddr.IP, the *m attribute values should not be held.
-		if err := a.addPeerReflexive(p, addr); err != nil {
+	copy(addr.IP, xAddr.IP)
+	if _, ok := a.localCandidateByAddr(addr); !ok {
+		if err := a.addPeerReflexive(t, p, addr); err != nil {
 			return err
 		}
 	}
@@ -666,7 +654,7 @@ func (a *Agent) processBindingResponse(p *Pair, m *stun.Message, raddr Addr) err
 var errCandidateNotFound = errors.New("candidate not found")
 var errUnsupportedProtocol = errors.New("protocol not supported")
 
-func (a *Agent) startBinding(p *Pair, m *stun.Message, t time.Time) error {
+func (a *Agent) startBinding(p *Pair, m *stun.Message, priority int, t time.Time) error {
 	if p.Remote.Addr.Proto != ct.UDP {
 		return errUnsupportedProtocol
 	}
@@ -680,9 +668,9 @@ func (a *Agent) startBinding(p *Pair, m *stun.Message, t time.Time) error {
 		start:     t,
 		rto:       rto,
 		deadline:  t.Add(rto),
-		pairKey:   pairContextKey(p),
 		raw:       m.Raw,
 		checklist: a.checklist,
+		priority:  priority,
 	}
 	udpAddr := &net.UDPAddr{
 		IP:   p.Remote.Addr.IP,
@@ -711,14 +699,14 @@ func (a *Agent) startCheck(p *Pair, t time.Time) error {
 	// local candidate, but with the candidate type preference of peer-
 	// reflexive candidates.
 	localPref := p.Local.LocalPreference
-	priority := PriorityAttr(Priority(TypePreference(ct.PeerReflexive), localPref, p.Local.ComponentID))
+	priority := Priority(TypePreference(ct.PeerReflexive), localPref, p.Local.ComponentID)
 	role := AttrControl{Role: a.role, Tiebreaker: a.tiebreaker}
 	username := stun.NewUsername(a.remoteUsername + ":" + a.localUsername)
 	m := stun.MustBuild(stun.TransactionID, stun.BindingRequest,
-		&username, &priority, &role,
+		&username, PriorityAttr(priority), &role,
 		&integrity, stun.Fingerprint,
 	)
-	return a.startBinding(p, m, t)
+	return a.startBinding(p, m, priority, t)
 }
 
 func randUint64(r io.Reader) (uint64, error) {
