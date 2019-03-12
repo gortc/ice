@@ -75,6 +75,7 @@ run:
     - e2e
     - fuzz
     - testdata
+    - _testdata
     - api
 
 # golangci.com configuration
