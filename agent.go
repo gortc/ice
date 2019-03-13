@@ -840,6 +840,9 @@ func (a *Agent) nextChecklist() (c Checklist, id int) {
 
 // init sets initial states for checklist sets.
 func (a *Agent) init() error {
+	if a.log == nil {
+		a.log = zap.NewNop()
+	}
 	if a.ta == 0 {
 		a.ta = defaultAgentTa
 	}
