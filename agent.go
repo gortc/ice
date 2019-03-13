@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"sync"
 	"time"
 
 	ct "github.com/gortc/ice/candidate"
@@ -175,10 +176,12 @@ type Agent struct {
 	state            State
 	rand             io.Reader
 	t                map[transactionID]*agentTransaction
+	tMux             sync.Mutex
 	localCandidates  [][]localUDPCandidate
 	remoteCandidates [][]Candidate
 	gatherer         candidateGatherer
 	log              *zap.Logger
+	mux              sync.Mutex
 
 	localUsername  string
 	localPassword  string
@@ -208,7 +211,21 @@ func (a *Agent) SetRemoteCredentials(username, password string) {
 
 // tick of ta.
 func (a *Agent) tick(t time.Time) error {
-	time.Sleep(time.Millisecond * 100)
+	a.mux.Lock()
+	if a.checklist == noChecklist {
+		_, cID := a.nextChecklist()
+		if cID == noChecklist {
+			a.mux.Unlock()
+			return errNoChecklist
+		}
+		a.checklist = cID
+	}
+	if a.shouldNominate(a.checklist) {
+		if err := a.startNomination(a.checklist); err != nil {
+			a.mux.Unlock()
+			return err
+		}
+	}
 	pair, err := a.pickPair()
 	if err != nil {
 		a.log.Debug("pickPair", zap.Error(err))
@@ -221,11 +238,14 @@ func (a *Agent) tick(t time.Time) error {
 			return errNoChecklist
 		}
 		a.checklist = cID
+		a.mux.Unlock()
 		return a.tick(t)
 	}
 	if err != nil {
+		a.mux.Unlock()
 		return err
 	}
+	a.mux.Unlock()
 	return a.startCheck(pair, t)
 }
 
@@ -233,9 +253,20 @@ func (a *Agent) tick(t time.Time) error {
 func (a *Agent) Conclude(ctx context.Context) error {
 	// TODO: Start async job.
 	ticker := time.NewTicker(a.ta)
+	defer ticker.Stop()
 	for t := range ticker.C {
 		if err := a.tick(t); err != nil {
 			return err
+		}
+		a.mux.Lock()
+		state := a.state
+		a.mux.Unlock()
+		if state == Completed {
+			a.log.Debug("concluded")
+			return nil
+		}
+		if state == Failed {
+			return errors.New("failed")
 		}
 	}
 	return nil
@@ -375,7 +406,12 @@ func (a *Agent) updateState() {
 		allCompleted = true
 		allFailed    = true
 	)
-	for _, c := range a.set {
+	for streamID, c := range a.set {
+		if a.concluded(streamID) {
+			a.log.Debug("checklist concluded", zap.Int("stream", streamID))
+			c.State = ChecklistCompleted
+			a.set[streamID] = c
+		}
 		switch c.State {
 		case ChecklistFailed:
 			allCompleted = false
@@ -420,6 +456,8 @@ func (a *Agent) addPeerReflexive(t *agentTransaction, p *Pair, addr Addr) error 
 		Priority: t.priority,
 	}
 	pr.Foundation = Foundation(&pr, Addr{})
+	a.mux.Lock()
+	defer a.mux.Unlock()
 	c, ok := a.localCandidateByAddr(p.Local.Addr)
 	if !ok {
 		return errCandidateNotFound
@@ -546,7 +584,9 @@ func (a *Agent) processUDP(buf []byte, c *localUDPCandidate, addr *net.UDPAddr) 
 	if m.Type == stun.BindingRequest {
 		return a.handleBindingRequest(m, c, raddr)
 	}
+	a.tMux.Lock()
 	t, ok := a.t[m.TransactionID]
+	a.tMux.Unlock()
 	if !ok {
 		// Transaction is not found.
 		a.log.Debug("transaction not found")
@@ -595,7 +635,11 @@ func (a *Agent) handleBindingRequest(m *stun.Message, c *localUDPCandidate, radd
 	}
 	pair.SetFoundation()
 	pair.SetPriority(a.role)
+
+	a.mux.Lock()
+	defer a.mux.Unlock()
 	list := a.set[c.stream]
+
 	for i := range list.Pairs {
 		if !list.Pairs[i].Local.Equal(&pair.Local) {
 			continue
@@ -635,22 +679,44 @@ func (a *Agent) handleBindingRequest(m *stun.Message, c *localUDPCandidate, radd
 
 	list.Pairs = append(list.Pairs, pair)
 	list.Sort()
+	a.set[c.stream] = list
 	return nil
 }
 
 var errNonSymmetricAddr = errors.New("peer address is not symmetric")
 
+func samePair(a, b *Pair) bool {
+	if a.ComponentID != b.ComponentID {
+		return false
+	}
+	if !a.Local.Addr.Equal(b.Local.Addr) {
+		return false
+	}
+	if !a.Remote.Addr.Equal(b.Remote.Addr) {
+		return false
+	}
+	return true
+}
+
 func (a *Agent) handleBindingResponse(t *agentTransaction, p *Pair, m *stun.Message, raddr Addr) error {
 	if err := a.processBindingResponse(t, p, m, raddr); err != nil {
 		// TODO: Handle nomination failure.
+
+		a.mux.Lock()
 		a.setPairState(t.checklist, t.pair, PairFailed)
+		a.mux.Unlock()
+
 		a.log.Debug("response process failed", zap.Error(err),
 			zap.Stringer("remote", p.Remote.Addr),
 			zap.Stringer("local", p.Local.Addr),
 		)
 		return err
 	}
+
+	a.mux.Lock()
 	a.setPairState(t.checklist, t.pair, PairSucceeded)
+	a.mux.Unlock()
+
 	a.log.Debug("response succeeded",
 		zap.Stringer("remote", p.Remote.Addr),
 		zap.Stringer("local", p.Local.Addr),
@@ -659,11 +725,15 @@ func (a *Agent) handleBindingResponse(t *agentTransaction, p *Pair, m *stun.Mess
 	// TODO: Construct valid pair as in https://tools.ietf.org/html/rfc8445#section-7.2.5.3.2
 	// Handling case "1" only, when valid pair is equal to generated pair p.
 	validPair := *p
+	a.mux.Lock()
 	cl := a.set[t.checklist]
 
 	// Setting all candidate paris with same foundation to "Waiting".
 	for cID, c := range a.set {
 		for i := range c.Pairs {
+			if samePair(p, &c.Pairs[i]) {
+				continue
+			}
 			if bytes.Equal(c.Pairs[i].Foundation, p.Foundation) {
 				a.setPairState(cID, i, PairWaiting)
 				continue
@@ -682,11 +752,32 @@ func (a *Agent) handleBindingResponse(t *agentTransaction, p *Pair, m *stun.Mess
 		zap.Stringer("local", validPair.Local.Addr),
 		zap.Stringer("remote", validPair.Remote.Addr),
 	)
-	cl.Valid = append(cl.Valid, validPair)
+	found := false
+	for i := range cl.Valid {
+		if cl.Valid[i].ComponentID != validPair.ComponentID {
+			continue
+		}
+		if !cl.Valid[i].Remote.Addr.Equal(validPair.Remote.Addr) {
+			continue
+		}
+		if !cl.Valid[i].Local.Addr.Equal(validPair.Local.Addr) {
+			continue
+		}
+		a.log.Debug("nominating",
+			zap.Stringer("remote", validPair.Remote.Addr),
+			zap.Stringer("local", validPair.Local.Addr),
+		)
+		found = true
+		cl.Valid[i].Nominated = true
+	}
+	if !found {
+		cl.Valid = append(cl.Valid, validPair)
+	}
 	a.set[t.checklist] = cl
-
 	// Updating checklist states.
 	a.updateState()
+	a.mux.Unlock()
+
 	return nil
 }
 
@@ -747,6 +838,7 @@ func (a *Agent) startBinding(p *Pair, m *stun.Message, priority int, t time.Time
 		return errCandidateNotFound
 	}
 	rto := a.rto()
+	a.tMux.Lock()
 	a.t[m.TransactionID] = &agentTransaction{
 		id:        m.TransactionID,
 		start:     t,
@@ -755,7 +847,9 @@ func (a *Agent) startBinding(p *Pair, m *stun.Message, priority int, t time.Time
 		raw:       m.Raw,
 		checklist: a.checklist,
 		priority:  priority,
+		nominate:  p.Nominated,
 	}
+	a.tMux.Unlock()
 	udpAddr := &net.UDPAddr{
 		IP:   p.Remote.Addr.IP,
 		Port: p.Remote.Addr.Port,
@@ -771,6 +865,59 @@ func (a *Agent) startBinding(p *Pair, m *stun.Message, priority int, t time.Time
 		zap.Stringer("msg", m),
 	)
 	return nil
+}
+
+func (a *Agent) concluded(streamID int) bool {
+	s := a.set[streamID]
+	if len(s.Valid) == 0 {
+		return false
+	}
+	comps := make(map[int]bool)
+	for i := range s.Pairs {
+		comps[s.Pairs[i].ComponentID] = true
+	}
+	nominatedComps := make(map[int]bool)
+	for i := range s.Valid {
+		if s.Valid[i].Nominated {
+			continue
+		}
+		nominatedComps[s.Valid[i].ComponentID] = true
+	}
+	return len(comps) == len(nominatedComps)
+}
+
+func (a *Agent) shouldNominate(streamID int) bool {
+	s := a.set[streamID]
+	if len(s.Valid) == 0 {
+		return false
+	}
+	comps := make(map[int]bool)
+	for i := range s.Pairs {
+		comps[s.Pairs[i].ComponentID] = true
+	}
+	for i := range s.Valid {
+		if !comps[s.Valid[i].ComponentID] {
+			return false
+		}
+	}
+	// TODO: Improve stopping criterion.
+	return true
+}
+
+func (a *Agent) startNomination(streamID int) error {
+	s := a.set[streamID]
+	for i := range s.Valid {
+		if s.Valid[i].Nominated {
+			continue
+		}
+		pair := s.Valid[i]
+		pair.Nominated = true
+		s.Triggered = append(s.Triggered, pair)
+		a.set[streamID] = s
+		a.log.Debug("starting nomination")
+		return nil
+	}
+	return errNoPair
 }
 
 // startCheck initializes connectivity check for pair.
@@ -796,10 +943,15 @@ func (a *Agent) startCheck(p *Pair, t time.Time) error {
 	priority := Priority(TypePreference(ct.PeerReflexive), localPref, p.Local.ComponentID)
 	role := AttrControl{Role: a.role, Tiebreaker: a.tiebreaker}
 	username := stun.NewUsername(a.remoteUsername + ":" + a.localUsername)
-	m := stun.MustBuild(stun.TransactionID, stun.BindingRequest,
+	attrs := []stun.Setter{
+		stun.TransactionID, stun.BindingRequest,
 		&username, PriorityAttr(priority), &role,
-		&integrity, stun.Fingerprint,
-	)
+	}
+	if p.Nominated {
+		attrs = append(attrs, UseCandidate)
+	}
+	attrs = append(attrs, &integrity, stun.Fingerprint)
+	m := stun.MustBuild(attrs...)
 	return a.startBinding(p, m, priority, t)
 }
 

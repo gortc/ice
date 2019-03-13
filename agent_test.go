@@ -1193,7 +1193,6 @@ func packetPipe(local, remote net.Addr) (net.PacketConn, net.PacketConn) {
 }
 
 func TestAgent_Conclude(t *testing.T) {
-	t.Skip("TODO: Implement conclude")
 	t.Run("Custom gatherer", func(t *testing.T) {
 		log, err := zap.NewDevelopment()
 		if err != nil {
@@ -1327,13 +1326,16 @@ func TestAgent_Conclude(t *testing.T) {
 		}
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
+		done := make(chan struct{})
 		go func() {
 			if err := b.Conclude(ctx); err != nil {
 				t.Error(err)
 			}
+			done <- struct{}{}
 		}()
 		if err := a.Conclude(ctx); err != nil {
 			t.Error(err)
 		}
+		<-done
 	})
 }
