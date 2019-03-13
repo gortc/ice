@@ -313,6 +313,9 @@ func (a *Agent) GatherCandidatesForStream(streamID int) error {
 		return err
 	}
 	for i := range candidates {
+		candidates[i].log = a.log.Named("candidate").With(
+			zap.Stringer("addr", candidates[i].candidate.Addr),
+		)
 		go candidates[i].readUntilClose(a)
 	}
 	a.localCandidates = append(a.localCandidates, candidates)

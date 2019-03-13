@@ -1338,4 +1338,68 @@ func TestAgent_Conclude(t *testing.T) {
 		}
 		<-done
 	})
+	t.Run("System", func(t *testing.T) {
+		log, err := zap.NewDevelopment()
+		if err != nil {
+			t.Fatal(err)
+		}
+		a, err := NewAgent(WithLogger(log.Named("L")))
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer mustClose(t, a)
+		if err = a.GatherCandidates(); err != nil {
+			t.Errorf("failed to gather candidates: %v", err)
+		}
+		b, err := NewAgent(WithRole(Controlled), WithLogger(log.Named("R")))
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer mustClose(t, b)
+		if err = b.GatherCandidates(); err != nil {
+			t.Errorf("failed to gather candidates: %v", err)
+		}
+		aCandidates, err := a.LocalCandidates()
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Log("a:", aCandidates[0].Addr)
+		bCandidates, err := b.LocalCandidates()
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Log("b:", bCandidates[0].Addr)
+		if err = a.AddRemoteCandidates(bCandidates); err != nil {
+			t.Fatal(err)
+		}
+		if err = b.AddRemoteCandidates(aCandidates); err != nil {
+			t.Fatal(err)
+		}
+		if err = a.PrepareChecklistSet(); err != nil {
+			t.Fatal(err)
+		}
+		if err = b.PrepareChecklistSet(); err != nil {
+			t.Fatal(err)
+		}
+		t.Logf("got pairs: %d", len(a.set[0].Pairs))
+		for _, p := range a.set[0].Pairs {
+			if p.Local.Addr.Equal(p.Remote.Addr) {
+				t.Error("local address is equal to remote")
+			}
+			t.Logf("%s -> %s [%d]", p.Local.Addr, p.Remote.Addr, p.Priority)
+		}
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		done := make(chan struct{})
+		go func() {
+			if err := b.Conclude(ctx); err != nil {
+				t.Error(err)
+			}
+			done <- struct{}{}
+		}()
+		if err := a.Conclude(ctx); err != nil {
+			t.Error(err)
+		}
+		<-done
+	})
 }
