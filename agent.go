@@ -383,6 +383,7 @@ func (a *Agent) rto() time.Duration {
 	// See Section 14.3, RTO.
 	// RTO = MAX (500ms, Ta * N * (Num-Waiting + Num-In-Progress))
 	var n, total int
+	a.mux.Lock()
 	for _, c := range a.set {
 		for i := range c.Pairs {
 			total++
@@ -391,6 +392,7 @@ func (a *Agent) rto() time.Duration {
 			}
 		}
 	}
+	a.mux.Unlock()
 	rto := time.Duration(total*n) * a.ta
 	if rto < minRTO {
 		rto = minRTO
