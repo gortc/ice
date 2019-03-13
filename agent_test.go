@@ -1,6 +1,7 @@
 package ice
 
 import (
+	"context"
 	"errors"
 	"io"
 	"math/rand"
@@ -12,6 +13,8 @@ import (
 	"github.com/gortc/ice/candidate"
 	"github.com/gortc/ice/gather"
 	"github.com/gortc/stun"
+
+	"go.uber.org/zap"
 )
 
 func newUDPCandidate(t *testing.T, addr HostAddr) candidateAndConn {
@@ -1133,6 +1136,202 @@ func TestAgent(t *testing.T) {
 				t.Error("local address is equal to remote")
 			}
 			t.Logf("%s -> %s [%d]", p.Local.Addr, p.Remote.Addr, p.Priority)
+		}
+	})
+}
+
+type pipePacketConn struct {
+	conn       net.Conn
+	localAddr  net.Addr
+	remoteAddr net.Addr
+}
+
+func (c *pipePacketConn) ReadFrom(p []byte) (n int, addr net.Addr, err error) {
+	n, err = c.conn.Read(p)
+	return n, c.remoteAddr, err
+}
+
+func (c *pipePacketConn) WriteTo(p []byte, addr net.Addr) (n int, err error) {
+	return c.conn.Write(p)
+}
+
+func (c pipePacketConn) Close() error {
+	return c.conn.Close()
+}
+
+func (pipePacketConn) LocalAddr() net.Addr {
+	panic("implement me")
+}
+
+func (pipePacketConn) SetDeadline(t time.Time) error {
+	panic("implement me")
+}
+
+func (pipePacketConn) SetReadDeadline(t time.Time) error {
+	panic("implement me")
+}
+
+func (pipePacketConn) SetWriteDeadline(t time.Time) error {
+	panic("implement me")
+}
+
+func packetPipe(local, remote net.Addr) (net.PacketConn, net.PacketConn) {
+	l, r := net.Pipe()
+	lCon := &pipePacketConn{
+		conn:       l,
+		remoteAddr: remote,
+		localAddr:  local,
+	}
+	rCon := &pipePacketConn{
+		conn:       r,
+		remoteAddr: local,
+		localAddr:  remote,
+	}
+	return lCon, rCon
+}
+
+func TestAgent_Conclude(t *testing.T) {
+	t.Skip("TODO: Implement conclude")
+	t.Run("Custom gatherer", func(t *testing.T) {
+		log, err := zap.NewDevelopment()
+		if err != nil {
+			t.Fatal(err)
+		}
+		lAddr := &net.UDPAddr{
+			IP:   net.IPv4(10, 0, 0, 1),
+			Port: 1000,
+		}
+		rAddr := &net.UDPAddr{
+			IP:   net.IPv4(10, 0, 0, 2),
+			Port: 2000,
+		}
+		connL, connR := packetPipe(lAddr, rAddr)
+		a, err := NewAgent(withGatherer(&mockGatherer{
+			udp: func(opt gathererOptions) (candidates []localUDPCandidate, e error) {
+				addrs, addrErr := HostAddresses([]gather.Addr{
+					{
+						IP:         lAddr.IP,
+						Precedence: gather.Precedence(lAddr.IP),
+					},
+				})
+				if addrErr != nil {
+					panic(addrErr)
+				}
+				a := Addr{
+					IP:    addrs[0].IP,
+					Port:  lAddr.Port,
+					Proto: candidate.UDP,
+				}
+				c := localUDPCandidate{
+					log: log.Named("L").Named("C"),
+					candidate: Candidate{
+						Base: Addr{
+							IP:    a.IP,
+							Port:  a.Port,
+							Proto: candidate.UDP,
+						},
+						Type: candidate.Host,
+						Addr: Addr{
+							IP:    a.IP,
+							Port:  a.Port,
+							Proto: candidate.UDP,
+						},
+						ComponentID: 1,
+					},
+					conn: connL,
+				}
+				return []localUDPCandidate{c}, nil
+			},
+		}), WithLogger(log.Named("L")))
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer mustClose(t, a)
+		if err = a.GatherCandidates(); err != nil {
+			t.Errorf("failed to gather candidates: %v", err)
+		}
+		b, err := NewAgent(withGatherer(&mockGatherer{
+			udp: func(opt gathererOptions) (candidates []localUDPCandidate, e error) {
+				addrs, addrErr := HostAddresses([]gather.Addr{
+					{
+						IP:         rAddr.IP,
+						Precedence: gather.Precedence(rAddr.IP),
+					},
+				})
+				if addrErr != nil {
+					panic(addrErr)
+				}
+				a := Addr{
+					IP:    addrs[0].IP,
+					Port:  rAddr.Port,
+					Proto: candidate.UDP,
+				}
+				c := localUDPCandidate{
+					log: log.Named("R").Named("C"),
+					candidate: Candidate{
+						Base: Addr{
+							IP:    a.IP,
+							Port:  a.Port,
+							Proto: candidate.UDP,
+						},
+						Type: candidate.Host,
+						Addr: Addr{
+							IP:    a.IP,
+							Port:  a.Port,
+							Proto: candidate.UDP,
+						},
+						ComponentID: 1,
+					},
+					conn: connR,
+				}
+				return []localUDPCandidate{c}, nil
+			},
+		}), WithRole(Controlled), WithLogger(log.Named("R")))
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer mustClose(t, b)
+		if err = b.GatherCandidates(); err != nil {
+			t.Errorf("failed to gather candidates: %v", err)
+		}
+		aCandidates, err := a.LocalCandidates()
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Log("a:", aCandidates[0].Addr)
+		bCandidates, err := b.LocalCandidates()
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Log("b:", bCandidates[0].Addr)
+		if err = a.AddRemoteCandidates(bCandidates); err != nil {
+			t.Fatal(err)
+		}
+		if err = b.AddRemoteCandidates(aCandidates); err != nil {
+			t.Fatal(err)
+		}
+		if err = a.PrepareChecklistSet(); err != nil {
+			t.Fatal(err)
+		}
+		if err = b.PrepareChecklistSet(); err != nil {
+			t.Fatal(err)
+		}
+		t.Logf("got pairs: %d", len(a.set[0].Pairs))
+		for _, p := range a.set[0].Pairs {
+			if p.Local.Addr.Equal(p.Remote.Addr) {
+				t.Error("local address is equal to remote")
+			}
+			t.Logf("%s -> %s [%d]", p.Local.Addr, p.Remote.Addr, p.Priority)
+		}
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		go func() {
+			if err := b.Conclude(ctx); err != nil {
+				t.Error(err)
+			}
+		}()
+		if err := a.Conclude(ctx); err != nil {
+			t.Error(err)
 		}
 	})
 }

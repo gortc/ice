@@ -102,6 +102,12 @@ func WithRole(r Role) AgentOption {
 	}
 }
 
+func WithLogger(l *zap.Logger) AgentOption {
+	return func(a *Agent) {
+		a.log = l
+	}
+}
+
 const defaultMaxChecks = 100
 
 func NewAgent(opts ...AgentOption) (*Agent, error) {
@@ -131,8 +137,8 @@ func (c *localUDPCandidate) Close() error {
 }
 
 func (c *localUDPCandidate) readUntilClose(a *Agent) {
-	buf := make([]byte, 1024)
 	for {
+		buf := make([]byte, 1024)
 		n, addr, err := c.conn.ReadFrom(buf)
 		if err != nil {
 			break
@@ -141,9 +147,13 @@ func (c *localUDPCandidate) readUntilClose(a *Agent) {
 		if !ok {
 			break
 		}
-		if err := a.processUDP(buf[:n], c, udpAddr); err != nil {
-			c.log.Error("processUDP failed", zap.Error(err))
-		}
+		go func() {
+			if err := a.processUDP(buf[:n], c, udpAddr); err != nil {
+				c.log.Error("processUDP failed", zap.Error(err))
+			} else {
+				c.log.Debug("processed")
+			}
+		}()
 	}
 }
 
@@ -168,6 +178,7 @@ type Agent struct {
 	localCandidates  [][]localUDPCandidate
 	remoteCandidates [][]Candidate
 	gatherer         candidateGatherer
+	log              *zap.Logger
 
 	localUsername  string
 	localPassword  string
@@ -197,14 +208,23 @@ func (a *Agent) SetRemoteCredentials(username, password string) {
 
 // tick of ta.
 func (a *Agent) tick(t time.Time) error {
+	time.Sleep(time.Millisecond * 100)
 	pair, err := a.pickPair()
-	if err == errNoPair {
+	if err != nil {
+		a.log.Debug("pickPair", zap.Error(err))
+	} else {
+		a.log.Debug("pickPair OK")
+	}
+	if err == errNoPair || err == errNoChecklist {
 		_, cID := a.nextChecklist()
 		if cID == noChecklist {
 			return errNoChecklist
 		}
 		a.checklist = cID
 		return a.tick(t)
+	}
+	if err != nil {
+		return err
 	}
 	return a.startCheck(pair, t)
 }
@@ -511,6 +531,10 @@ func (a *Agent) pickPair() (*Pair, error) {
 var errNotSTUNMessage = errors.New("packet is not STUN Message")
 
 func (a *Agent) processUDP(buf []byte, c *localUDPCandidate, addr *net.UDPAddr) error {
+	a.log.Debug("got udp packet",
+		zap.Stringer("local", c.candidate.Addr),
+		zap.Stringer("from", addr),
+	)
 	if !stun.IsMessage(buf) {
 		return errNotSTUNMessage
 	}
@@ -525,12 +549,15 @@ func (a *Agent) processUDP(buf []byte, c *localUDPCandidate, addr *net.UDPAddr) 
 	t, ok := a.t[m.TransactionID]
 	if !ok {
 		// Transaction is not found.
+		a.log.Debug("transaction not found")
 		return nil
 	}
 	p := a.set[t.checklist].Pairs[t.pair]
 	switch m.Type {
 	case stun.BindingSuccess, stun.BindingError:
 		return a.handleBindingResponse(t, &p, m, raddr)
+	default:
+		a.log.Debug("unknown message type", zap.Stringer("t", m.Type))
 	}
 	return nil
 }
@@ -547,7 +574,15 @@ func (a *Agent) remoteCandidateByAddr(addr Addr) (Candidate, bool) {
 }
 
 func (a *Agent) handleBindingRequest(m *stun.Message, c *localUDPCandidate, raddr Addr) error {
+	a.log.Debug("handling binding request",
+		zap.Stringer("remote", raddr),
+		zap.Stringer("local", c.candidate.Addr),
+	)
 	if err := stun.Fingerprint.Check(m); err != nil {
+		return err
+	}
+	integrity := stun.NewShortTermIntegrity(a.localPassword)
+	if err := integrity.Check(m); err != nil {
 		return err
 	}
 	remoteCandidate, ok := a.remoteCandidateByAddr(raddr)
@@ -561,6 +596,43 @@ func (a *Agent) handleBindingRequest(m *stun.Message, c *localUDPCandidate, radd
 	pair.SetFoundation()
 	pair.SetPriority(a.role)
 	list := a.set[c.stream]
+	for i := range list.Pairs {
+		if !list.Pairs[i].Local.Equal(&pair.Local) {
+			continue
+		}
+		if !list.Pairs[i].Remote.Equal(&pair.Remote) {
+			continue
+		}
+		state := list.Pairs[i].State
+		a.log.Debug("found", zap.Stringer("state", state))
+		pair.State = PairWaiting
+		list.Triggered = append(list.Triggered, list.Pairs[i])
+		a.set[c.stream] = list
+		a.log.Debug("added to triggered set",
+			zap.Stringer("local", pair.Local.Addr),
+			zap.Stringer("remote", pair.Remote.Addr),
+		)
+		// Sending response.
+		res := stun.MustBuild(m, stun.BindingSuccess,
+			&stun.XORMappedAddress{
+				IP:   raddr.IP,
+				Port: raddr.Port,
+			},
+			integrity, stun.Fingerprint,
+		)
+		a.log.Debug("writing", zap.Stringer("m", res))
+		_, err := c.conn.WriteTo(res.Raw, &net.UDPAddr{
+			Port: raddr.Port,
+			IP:   raddr.IP,
+		})
+		if err == nil {
+			a.log.Debug("wrote response", zap.Stringer("m", res))
+		} else {
+			a.log.Debug("write err", zap.Error(err))
+		}
+		return err
+	}
+
 	list.Pairs = append(list.Pairs, pair)
 	list.Sort()
 	return nil
@@ -572,9 +644,17 @@ func (a *Agent) handleBindingResponse(t *agentTransaction, p *Pair, m *stun.Mess
 	if err := a.processBindingResponse(t, p, m, raddr); err != nil {
 		// TODO: Handle nomination failure.
 		a.setPairState(t.checklist, t.pair, PairFailed)
+		a.log.Debug("response process failed", zap.Error(err),
+			zap.Stringer("remote", p.Remote.Addr),
+			zap.Stringer("local", p.Local.Addr),
+		)
 		return err
 	}
 	a.setPairState(t.checklist, t.pair, PairSucceeded)
+	a.log.Debug("response succeeded",
+		zap.Stringer("remote", p.Remote.Addr),
+		zap.Stringer("local", p.Local.Addr),
+	)
 	// Adding to valid list.
 	// TODO: Construct valid pair as in https://tools.ietf.org/html/rfc8445#section-7.2.5.3.2
 	// Handling case "1" only, when valid pair is equal to generated pair p.
@@ -598,6 +678,10 @@ func (a *Agent) handleBindingResponse(t *agentTransaction, p *Pair, m *stun.Mess
 	if t.nominate {
 		validPair.Nominated = true
 	}
+	a.log.Debug("added to valid list",
+		zap.Stringer("local", validPair.Local.Addr),
+		zap.Stringer("remote", validPair.Remote.Addr),
+	)
 	cl.Valid = append(cl.Valid, validPair)
 	a.set[t.checklist] = cl
 
@@ -682,11 +766,21 @@ func (a *Agent) startBinding(p *Pair, m *stun.Message, priority int, t time.Time
 	if err != nil {
 		return err
 	}
+	a.log.Debug("started",
+		zap.Stringer("remote", udpAddr),
+		zap.Stringer("msg", m),
+	)
 	return nil
 }
 
 // startCheck initializes connectivity check for pair.
 func (a *Agent) startCheck(p *Pair, t time.Time) error {
+	a.log.Debug("startCheck",
+		zap.Stringer("remote", p.Remote.Addr),
+		zap.Stringer("local", p.Local.Addr),
+		zap.Int("component", p.ComponentID),
+	)
+
 	// Once the agent has picked a candidate pair for which a connectivity
 	// check is to be performed, the agent starts a check and sends the
 	// Binding request from the base associated with the local candidate of
