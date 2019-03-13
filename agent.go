@@ -597,9 +597,9 @@ func (a *Agent) processUDP(buf []byte, c *localUDPCandidate, addr *net.UDPAddr) 
 		return nil
 	}
 
-	a.tMux.Lock()
+	a.mux.Lock()
 	p := a.set[t.checklist].Pairs[t.pair]
-	a.tMux.Unlock()
+	a.mux.Unlock()
 
 	switch m.Type {
 	case stun.BindingSuccess, stun.BindingError:
