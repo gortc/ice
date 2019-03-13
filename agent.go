@@ -586,15 +586,21 @@ func (a *Agent) processUDP(buf []byte, c *localUDPCandidate, addr *net.UDPAddr) 
 	if m.Type == stun.BindingRequest {
 		return a.handleBindingRequest(m, c, raddr)
 	}
+
 	a.tMux.Lock()
 	t, ok := a.t[m.TransactionID]
 	a.tMux.Unlock()
+
 	if !ok {
 		// Transaction is not found.
 		a.log.Debug("transaction not found")
 		return nil
 	}
+
+	a.tMux.Lock()
 	p := a.set[t.checklist].Pairs[t.pair]
+	a.tMux.Unlock()
+
 	switch m.Type {
 	case stun.BindingSuccess, stun.BindingError:
 		return a.handleBindingResponse(t, &p, m, raddr)
