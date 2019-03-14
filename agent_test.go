@@ -313,9 +313,10 @@ func TestAgent_check(t *testing.T) {
 		stunAgent.start = func(m *stun.Message) error {
 			return stunErr
 		}
-		if err := a.startCheck(pair, now); err != stunErr {
+		if err := a.startCheck(pair, now); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
+		// TODO: Check logs for warning.
 	})
 	t.Run("STUN Unrecoverable error", func(t *testing.T) {
 		var tid transactionID

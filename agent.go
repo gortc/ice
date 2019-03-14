@@ -873,6 +873,12 @@ func (a *Agent) startBinding(p *Pair, m *stun.Message, priority int, t time.Time
 	// TODO: Add write deadline.
 	// TODO: Check n if needed.
 	if err != nil {
+		a.log.Warn("failed to write",
+			zap.Stringer("to", udpAddr),
+			zap.Stringer("from", c.candidate.Addr),
+			zap.Error(err),
+		)
+
 		// TODO: If temporary, just perform STUN retries normally.
 		a.tMux.Lock()
 		delete(a.t, m.TransactionID)
@@ -892,7 +898,7 @@ func (a *Agent) startBinding(p *Pair, m *stun.Message, priority int, t time.Time
 		}
 		a.mux.Unlock()
 
-		return err
+		return nil
 	}
 	a.log.Debug("started",
 		zap.Stringer("remote", udpAddr),
