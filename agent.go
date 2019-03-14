@@ -849,6 +849,10 @@ func (a *Agent) startBinding(p *Pair, m *stun.Message, priority int, t time.Time
 		return errCandidateNotFound
 	}
 	rto := a.rto()
+	a.mux.Lock()
+	checklist := a.checklist
+	a.mux.Unlock()
+
 	a.tMux.Lock()
 	a.t[m.TransactionID] = &agentTransaction{
 		id:        m.TransactionID,
@@ -856,7 +860,7 @@ func (a *Agent) startBinding(p *Pair, m *stun.Message, priority int, t time.Time
 		rto:       rto,
 		deadline:  t.Add(rto),
 		raw:       m.Raw,
-		checklist: a.checklist,
+		checklist: checklist,
 		priority:  priority,
 		nominate:  p.Nominated,
 	}
@@ -869,6 +873,25 @@ func (a *Agent) startBinding(p *Pair, m *stun.Message, priority int, t time.Time
 	// TODO: Add write deadline.
 	// TODO: Check n if needed.
 	if err != nil {
+		// TODO: If temporary, just perform STUN retries normally.
+		a.tMux.Lock()
+		delete(a.t, m.TransactionID)
+		a.tMux.Unlock()
+
+		a.mux.Lock()
+		cl := a.set[checklist]
+		for i := range cl.Triggered {
+			if samePair(&cl.Triggered[i], p) {
+				cl.Triggered[i].State = PairFailed
+			}
+		}
+		for i := range cl.Pairs {
+			if samePair(&cl.Pairs[i], p) {
+				cl.Pairs[i].State = PairFailed
+			}
+		}
+		a.mux.Unlock()
+
 		return err
 	}
 	a.log.Debug("started",

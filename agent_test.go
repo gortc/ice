@@ -208,6 +208,7 @@ func TestAgent_check(t *testing.T) {
 		t.Fatal("bad role")
 	}
 	a.updateState()
+	a.checklist = 0
 	t.Logf("state: %s", a.state)
 	pair := &a.set[0].Pairs[0]
 	pair.Local.LocalPreference = 10
