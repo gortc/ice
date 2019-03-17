@@ -146,6 +146,19 @@ func ifaceToAddr(i netInterface, name string) ([]Addr, error) {
 	return addrs, nil
 }
 
+func ifaceValid(iface net.Interface) bool {
+	f := iface.Flags
+	if f&net.FlagUp == 0 {
+		// Interface is down.
+		return false
+	}
+	if f&net.FlagLoopback != 0 {
+		// Interface is loopback.
+		return false
+	}
+	return true
+}
+
 func (g defaultGatherer) Gather() ([]Addr, error) {
 	interfaces, err := net.Interfaces()
 	if err != nil {
@@ -153,6 +166,9 @@ func (g defaultGatherer) Gather() ([]Addr, error) {
 	}
 	addrs := make([]Addr, 0, 10)
 	for _, iface := range interfaces {
+		if !ifaceValid(iface) {
+			continue
+		}
 		ifaceAddrs, err := ifaceToAddr(&iface, iface.Name)
 		if err != nil {
 			return addrs, err
