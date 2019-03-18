@@ -2,6 +2,87 @@
 
 
 [[projects]]
+  branch = "master"
+  digest = "1:ef5623113e0a76e368e8e3db90af6463bea525341d551eddf99e7d73f4935891"
+  name = "github.com/chromedp/cdproto"
+  packages = [
+    ".",
+    "accessibility",
+    "animation",
+    "applicationcache",
+    "audits",
+    "backgroundservice",
+    "browser",
+    "cachestorage",
+    "cast",
+    "cdp",
+    "css",
+    "database",
+    "debugger",
+    "deviceorientation",
+    "dom",
+    "domdebugger",
+    "domsnapshot",
+    "domstorage",
+    "emulation",
+    "fetch",
+    "headlessexperimental",
+    "heapprofiler",
+    "indexeddb",
+    "input",
+    "inspector",
+    "io",
+    "layertree",
+    "log",
+    "memory",
+    "network",
+    "overlay",
+    "page",
+    "performance",
+    "profiler",
+    "runtime",
+    "security",
+    "serviceworker",
+    "storage",
+    "systeminfo",
+    "target",
+    "testing",
+    "tethering",
+    "tracing",
+  ]
+  pruneopts = "UT"
+  revision = "183f1739f584d91e43bfef7099bc33527314aa1b"
+
+[[projects]]
+  digest = "1:cfd47f2036ebcec975bd79962970afd38f0270505285ef0248ce38cb01ad0fe2"
+  name = "github.com/chromedp/chromedp"
+  packages = [
+    ".",
+    "client",
+    "kb",
+    "runner",
+  ]
+  pruneopts = "UT"
+  revision = "4cc98907450234863eb7f74e545bb6def2352720"
+  version = "v0.1.3"
+
+[[projects]]
+  digest = "1:47cebe27e59e4e0c239d0bf2419d6a46f0364a56efc43be702c32b82710b6ecf"
+  name = "github.com/disintegration/imaging"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "5362c131d56305ce787e79a5b94ffc956df00d62"
+  version = "v1.6.0"
+
+[[projects]]
+  digest = "1:7b5c6e2eeaa9ae5907c391a91c132abfd5c9e8a784a341b5625e750c67e6825d"
+  name = "github.com/gorilla/websocket"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "66b9c49e59c6c48f0ffce28c2d8b8a5678502c6d"
+  version = "v1.4.0"
+
+[[projects]]
   digest = "1:fb8730b82b0ca9011831673e71a31f0a2334c887bea7bb1054a10a81d26d91d4"
   name = "github.com/gortc/sdp"
   packages = ["."]
@@ -19,6 +100,35 @@
   pruneopts = "UT"
   revision = "ce5eeedaab2f9936d65ecf767dfc6cd060565e28"
   version = "v1.18.5"
+
+[[projects]]
+  branch = "master"
+  digest = "1:957b15d94d4771a424b6ccb959214fe8caafb7d791d0f588ac572b7cdc894457"
+  name = "github.com/knq/snaker"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "2bc8a4db468777180ca38d551094b83073bed25f"
+
+[[projects]]
+  branch = "master"
+  digest = "1:8cb15b21828b36ad568850d0ecb9340e22b148c8c6755f4a3d7918021bfc38a2"
+  name = "github.com/knq/sysutil"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "f05b59f0f3075ba1bc5701ef0df4393a05ebd0e7"
+
+[[projects]]
+  branch = "master"
+  digest = "1:b8774f0cf1c719f5253e92f1fc7880b4186046064c3c23ead99ab568028a6510"
+  name = "github.com/mailru/easyjson"
+  packages = [
+    ".",
+    "buffer",
+    "jlexer",
+    "jwriter",
+  ]
+  pruneopts = "UT"
+  revision = "1de009706dbeb9d05f18586f0735fcdb7c524481"
 
 [[projects]]
   digest = "1:40e195917a951a8bf867cd05de2a46aaf1806c50cf92eebf4c16f78cd196f747"
@@ -59,13 +169,38 @@
   revision = "ff33455a0e382e8a81d14dd7c922020b6b5e7982"
   version = "v1.9.1"
 
+[[projects]]
+  branch = "master"
+  digest = "1:acadbbf02e5c744709c60ac929e63258a69a3404ab36ed0c1a245cc28f056220"
+  name = "golang.org/x/image"
+  packages = [
+    "bmp",
+    "tiff",
+    "tiff/lzw",
+  ]
+  pruneopts = "UT"
+  revision = "0694c2d4d067f97ebef574d63a763ee8ab559da7"
+
+[[projects]]
+  branch = "master"
+  digest = "1:7427036b6d926b3d1fa0773771820735b35554a98296f1074df440ee30a97296"
+  name = "golang.org/x/net"
+  packages = ["websocket"]
+  pruneopts = "UT"
+  revision = "9f648a60d9775ef5c977e7669d1673a7a67bef33"
+
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
+    "github.com/chromedp/chromedp",
+    "github.com/chromedp/chromedp/runner",
+    "github.com/gorilla/websocket",
     "github.com/gortc/sdp",
     "github.com/gortc/stun",
+    "github.com/pkg/errors",
     "go.uber.org/zap",
+    "golang.org/x/net/websocket",
   ]
   solver-name = "gps-cdcl"
   solver-version = 1
