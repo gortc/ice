@@ -143,7 +143,11 @@ func startNative(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	defer a.Close()
+	defer func() {
+		if err := a.Close(); err != nil {
+			log.Println("failed to close agent:", err)
+		}
+	}()
 	a.SetLocalCredentials(ufrag, pwd)
 	if err = a.GatherCandidates(); err != nil {
 		return errors.Wrap(err, "failed to gather candidates")
