@@ -254,22 +254,26 @@ func (a *Agent) Conclude(ctx context.Context) error {
 	// TODO: Start async job.
 	ticker := time.NewTicker(a.ta)
 	defer ticker.Stop()
-	for t := range ticker.C {
-		if err := a.tick(t); err != nil {
-			return err
-		}
-		a.mux.Lock()
-		state := a.state
-		a.mux.Unlock()
-		if state == Completed {
-			a.log.Debug("concluded")
-			return nil
-		}
-		if state == Failed {
-			return errors.New("failed")
+	for {
+		select {
+		case t := <-ticker.C:
+			if err := a.tick(t); err != nil {
+				return err
+			}
+			a.mux.Lock()
+			state := a.state
+			a.mux.Unlock()
+			if state == Completed {
+				a.log.Debug("concluded")
+				return nil
+			}
+			if state == Failed {
+				return errors.New("failed")
+			}
+		case <-ctx.Done():
+			return ctx.Err()
 		}
 	}
-	return nil
 }
 
 func (a *Agent) localCandidateByAddr(addr Addr) (candidate localUDPCandidate, ok bool) {
