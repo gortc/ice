@@ -12,7 +12,6 @@ import (
 	"os"
 	"sort"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/chromedp/chromedp"
@@ -306,7 +305,7 @@ func startNative(ctx context.Context) error {
 			msg, err := json.Marshal(sdpSignal{
 				SDP: sdpDescription{
 					Type: "answer",
-					SDP:  strings.Replace(answer, "\n", "\r\n", -1) + "\r\n",
+					SDP:  answer,
 				},
 			})
 			fmt.Println("sending", string(msg))
