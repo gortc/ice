@@ -279,6 +279,70 @@ func loadData(tb testing.TB, name string) []byte {
 	return v
 }
 
+func TestCandidate_String(t *testing.T) {
+	for _, tc := range []struct {
+		Name string
+		In   Candidate
+		Out  string
+	}{
+		{
+			Name: "blank",
+			Out:  "0 0 udp 0 <nil> 0 typ host generation 0",
+		},
+		{
+			Name: "host",
+			Out:  "3862931549 0 udp 2113937151 10.1.0.5 2001 typ host generation 0 network-cost 50",
+			In: Candidate{
+				ConnectionAddress: Address{
+					Type: AddressIPv4,
+					IP:   net.IPv4(10, 1, 0, 5),
+				},
+				Type:       candidate.Host,
+				Port:       2001,
+				Foundation: 3862931549,
+				Priority:   2113937151,
+				Attributes: Attributes{
+					{
+						Key:   []byte("network-cost"),
+						Value: []byte("50"),
+					},
+				},
+			},
+		},
+	} {
+		t.Run(tc.Name, func(t *testing.T) {
+			if out := tc.In.String(); out != tc.Out {
+				t.Errorf("%q (got) != %q (expected)", out, tc.Out)
+			}
+		})
+	}
+}
+
+func BenchmarkAddress_String(b *testing.B) {
+	b.ReportAllocs()
+	c := &Candidate{
+		ConnectionAddress: Address{
+			Type: AddressIPv4,
+			IP:   net.IPv4(10, 1, 0, 5),
+		},
+		Type:       candidate.Host,
+		Port:       2001,
+		Foundation: 3862931549,
+		Priority:   2113937151,
+		Attributes: Attributes{
+			{
+				Key:   []byte("network-cost"),
+				Value: []byte("50"),
+			},
+		},
+	}
+	for i := 0; i < b.N; i++ {
+		if c.String() == "" {
+			b.Fatal("blank string")
+		}
+	}
+}
+
 func TestConnectionAddress(t *testing.T) {
 	data := loadData(t, "candidates_ex1.sdp")
 	s, err := sdp.DecodeSession(data, nil)

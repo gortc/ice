@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"net"
 	"strconv"
+	"strings"
 	"unsafe"
 
 	ct "github.com/gortc/ice/candidate"
@@ -112,6 +113,47 @@ type Candidate struct {
 	Generation        int // extended
 	Transport         ct.Protocol
 	Type              ct.Type
+}
+
+func transportToStr(t ct.Protocol) string {
+	switch t {
+	case ct.UDP:
+		return "udp"
+	default:
+		return "unknown"
+	}
+}
+
+func typToStr(t ct.Type) string {
+	switch t {
+	case ct.Host:
+		return sdpCandidateHost
+	case ct.ServerReflexive:
+		return sdpCandidateServerReflexive
+	case ct.PeerReflexive:
+		return sdpCandidatePeerReflexive
+	case ct.Relayed:
+		return sdpCandidateRelay
+	default:
+		return "unknown"
+	}
+}
+
+func (c *Candidate) String() string {
+	parts := []string{
+		strconv.Itoa(c.Foundation),
+		strconv.Itoa(c.ComponentID),
+		transportToStr(c.Transport),
+		strconv.Itoa(c.Priority),
+		c.ConnectionAddress.String(),
+		strconv.Itoa(c.Port),
+		"typ", typToStr(c.Type),
+		"generation", strconv.Itoa(c.Generation),
+	}
+	for _, a := range c.Attributes {
+		parts = append(parts, byteStr(a.Key), byteStr(a.Value))
+	}
+	return strings.Join(parts, " ")
 }
 
 // Reset sets all fields to zero values.
