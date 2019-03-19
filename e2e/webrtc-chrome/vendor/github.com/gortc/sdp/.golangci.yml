@@ -29,15 +29,18 @@ linters-settings:
 issues:
   exclude:
     - "isOptional is a pure function"
+    - "use strings.ReplaceAll"
   exclude-rules:
     - text: "string `<nil>`"
       linters:
         - goconst
 
     - text: "`\\(\\*Message\\)\\.Append`"
-      linters: gocyclo
+      linters:
+        - gocyclo
     - text: "`\\(\\*Decoder\\)"
-      linters: gocyclo
+      linters:
+        - gocyclo
 
     # Exclude some linters from running on tests files.
     - path: _test\.go

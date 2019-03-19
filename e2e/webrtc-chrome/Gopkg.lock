@@ -79,12 +79,12 @@
   version = "v1.2.0"
 
 [[projects]]
-  digest = "1:84fd2177baeb5296d58002aff69e4d6ccb0be78df1fb267fafdd4db25409a227"
+  digest = "1:d32320d3c98090534d41be6e06ec269cbab44de185cb9683a6d6e9a0dedf90c0"
   name = "github.com/gortc/sdp"
   packages = ["."]
   pruneopts = "UT"
-  revision = "56bff91552f5b180edcc891d8158d33fe42412b6"
-  version = "v0.13.1"
+  revision = "d2c370f6c6a7425e9fe1c9ca3ec9ba4fba407d0a"
+  version = "v0.14.0"
 
 [[projects]]
   branch = "master"
