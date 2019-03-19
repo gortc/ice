@@ -85,7 +85,7 @@ function gotDescription(description) {
     console.log('got description');
     peerConnection.setLocalDescription(description).then(function () {
         // serverConnection.send(JSON.stringify({'sdp': description}))
-        // Use with trickle.
+        // TODO: Use with trickle.
     }).catch(function () {
         console.log('set description error')
     });
