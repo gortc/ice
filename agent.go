@@ -179,6 +179,7 @@ type Agent struct {
 	tiebreaker       uint64
 	role             Role
 	state            State
+	ipv4Only         bool
 	rand             io.Reader
 	t                map[transactionID]*agentTransaction
 	tMux             sync.Mutex
@@ -187,7 +188,6 @@ type Agent struct {
 	gatherer         candidateGatherer
 	log              *zap.Logger
 	mux              sync.Mutex
-	ipv4Only         bool
 
 	localUsername  string
 	localPassword  string
