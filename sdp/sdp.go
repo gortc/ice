@@ -115,6 +115,14 @@ type Candidate struct {
 	Type              ct.Type
 }
 
+func (c *Candidate) UnmarshalText(text []byte) error {
+	return ParseAttribute(text, c)
+}
+
+func (c *Candidate) MarshalText() (text []byte, err error) {
+	return []byte(c.String()), nil
+}
+
 func transportToStr(t ct.Protocol) string {
 	switch t {
 	case ct.UDP:
