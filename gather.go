@@ -29,6 +29,9 @@ func (g systemCandidateGatherer) gatherUDP(opt gathererOptions) ([]localUDPCandi
 	var candidates []localUDPCandidate
 	for component := 1; component <= opt.Components; component++ {
 		for _, addr := range hostAddr {
+			if opt.IPv4Only && addr.IP.To4() == nil {
+				continue
+			}
 			zeroPort := net.UDPAddr{
 				IP:   addr.IP,
 				Port: 0,

@@ -109,6 +109,10 @@ func WithLogger(l *zap.Logger) AgentOption {
 	}
 }
 
+var WithIPv4Only AgentOption = func(a *Agent) {
+	a.ipv4Only = true
+}
+
 const defaultMaxChecks = 100
 
 func NewAgent(opts ...AgentOption) (*Agent, error) {
@@ -160,6 +164,7 @@ func (c *localUDPCandidate) readUntilClose(a *Agent) {
 
 type gathererOptions struct {
 	Components int
+	IPv4Only   bool
 }
 
 type candidateGatherer interface {
@@ -182,6 +187,7 @@ type Agent struct {
 	gatherer         candidateGatherer
 	log              *zap.Logger
 	mux              sync.Mutex
+	ipv4Only         bool
 
 	localUsername  string
 	localPassword  string
@@ -211,6 +217,7 @@ func (a *Agent) SetRemoteCredentials(username, password string) {
 
 // tick of ta.
 func (a *Agent) tick(t time.Time) error {
+	time.Sleep(time.Millisecond * 10)
 	a.mux.Lock()
 	if a.checklist == noChecklist {
 		_, cID := a.nextChecklist()
@@ -312,7 +319,7 @@ func (a *Agent) GatherCandidatesForStream(streamID int) error {
 	if len(a.localCandidates) > streamID {
 		return errStreamAlreadyExist
 	}
-	candidates, err := a.gatherer.gatherUDP(gathererOptions{Components: 1})
+	candidates, err := a.gatherer.gatherUDP(gathererOptions{Components: 1, IPv4Only: a.ipv4Only})
 	if err != nil {
 		return err
 	}
@@ -589,6 +596,7 @@ func (a *Agent) processUDP(buf []byte, c *localUDPCandidate, addr *net.UDPAddr) 
 	if err := m.Decode(); err != nil {
 		return err
 	}
+	a.log.Debug("got message", zap.Stringer("m", m))
 	raddr := Addr{Port: addr.Port, IP: addr.IP, Proto: ct.UDP}
 	if m.Type == stun.BindingRequest {
 		return a.handleBindingRequest(m, c, raddr)
@@ -804,9 +812,6 @@ func (a *Agent) processBindingResponse(t *agentTransaction, p *Pair, m *stun.Mes
 		}
 		return err
 	}
-	if err := integrity.Check(m); err != nil {
-		return err
-	}
 	if !raddr.Equal(p.Remote.Addr) {
 		return errNonSymmetricAddr
 	}
@@ -818,7 +823,14 @@ func (a *Agent) processBindingResponse(t *agentTransaction, p *Pair, m *stun.Mes
 		if errCode.Code == stun.CodeRoleConflict {
 			return errRoleConflict
 		}
+		a.log.Debug("got binding error",
+			zap.String("reason", string(errCode.Reason)),
+			zap.Int("code", int(errCode.Code)),
+		)
 		return unrecoverableErrorCodeErr{Code: errCode.Code}
+	}
+	if err := integrity.Check(m); err != nil {
+		return err
 	}
 	if m.Type != stun.BindingSuccess {
 		return unexpectedResponseTypeErr{Type: m.Type}
