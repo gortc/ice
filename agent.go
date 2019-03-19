@@ -216,8 +216,7 @@ func (a *Agent) SetRemoteCredentials(username, password string) {
 }
 
 // tick of ta.
-func (a *Agent) tick(t time.Time) error {
-	time.Sleep(time.Millisecond * 10)
+func (a *Agent) tick(t time.Time, metChecklists map[int]bool) error {
 	a.mux.Lock()
 	if a.checklist == noChecklist {
 		_, cID := a.nextChecklist()
@@ -240,13 +239,15 @@ func (a *Agent) tick(t time.Time) error {
 		a.log.Debug("pickPair OK")
 	}
 	if err == errNoPair || err == errNoChecklist {
+		metChecklists[a.checklist] = true
 		_, cID := a.nextChecklist()
-		if cID == noChecklist {
+		if cID == noChecklist || metChecklists[cID] {
+			a.mux.Unlock()
 			return errNoChecklist
 		}
 		a.checklist = cID
 		a.mux.Unlock()
-		return a.tick(t)
+		return a.tick(t, metChecklists)
 	}
 	if err != nil {
 		a.mux.Unlock()
@@ -264,7 +265,7 @@ func (a *Agent) Conclude(ctx context.Context) error {
 	for {
 		select {
 		case t := <-ticker.C:
-			if err := a.tick(t); err != nil {
+			if err := a.tick(t, make(map[int]bool)); err != nil {
 				return err
 			}
 			a.mux.Lock()
