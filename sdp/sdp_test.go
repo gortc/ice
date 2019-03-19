@@ -309,6 +309,21 @@ func TestCandidate_String(t *testing.T) {
 				},
 			},
 		},
+		{
+			Name: "network cost",
+			Out:  "3862931549 0 udp 2113937151 10.1.0.5 2001 typ host generation 0 network-cost 999",
+			In: Candidate{
+				ConnectionAddress: Address{
+					Type: AddressIPv4,
+					IP:   net.IPv4(10, 1, 0, 5),
+				},
+				Type:        candidate.Host,
+				Port:        2001,
+				Foundation:  3862931549,
+				Priority:    2113937151,
+				NetworkCost: 999,
+			},
+		},
 	} {
 		t.Run(tc.Name, func(t *testing.T) {
 			if out := tc.In.String(); out != tc.Out {

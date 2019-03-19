@@ -158,6 +158,9 @@ func (c *Candidate) String() string {
 		aType, typToStr(c.Type),
 		aGeneration, strconv.Itoa(c.Generation),
 	}
+	if c.NetworkCost > 0 {
+		parts = append(parts, aNetworkCost, strconv.Itoa(c.NetworkCost))
+	}
 	for _, a := range c.Attributes {
 		parts = append(parts, byteStr(a.Key), byteStr(a.Value))
 	}
