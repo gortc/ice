@@ -2,12 +2,17 @@ package main
 
 import (
 	"context"
+	"encoding/binary"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
 	"net"
 	"net/http"
+	"os"
+	"sort"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/chromedp/chromedp"
@@ -23,13 +28,14 @@ import (
 )
 
 var (
-	bin           = flag.String("b", "/usr/bin/google-chrome", "path to binary")
-	headless      = flag.Bool("headless", true, "headless mode")
-	httpAddr      = flag.String("addr", "0.0.0.0:8080", "http endpoint to listen")
-	signalingAddr = flag.String("signaling", "signaling:2255", "signaling server addr")
-	timeout       = flag.Duration("timeout", time.Second*5, "test timeout")
-	controlling   = flag.Bool("controlling", false, "agent is controlling")
-	browser       = flag.Bool("browser", false, "use browser as ICE agent")
+	bin            = flag.String("b", "/usr/bin/google-chrome", "path to binary")
+	headless       = flag.Bool("headless", true, "headless mode")
+	httpAddr       = flag.String("addr", "0.0.0.0:8080", "http endpoint to listen")
+	signalingAddr  = flag.String("signaling", "signaling:2255", "signaling server addr")
+	timeout        = flag.Duration("timeout", time.Second*5, "test timeout")
+	controlling    = flag.Bool("controlling", false, "agent is controlling")
+	controlledAddr = flag.String("controlled", "turn-controlled:8080", "controlled server addr")
+	browser        = flag.Bool("browser", false, "use browser as ICE agent")
 )
 
 func resolve(a string) *net.TCPAddr {
@@ -41,7 +47,7 @@ func resolve(a string) *net.TCPAddr {
 		}
 		time.Sleep(time.Millisecond * 100 * time.Duration(i))
 	}
-	panic("failed to resolve")
+	panic(fmt.Sprintf("failed to resolve %q", a))
 }
 
 type dpLogEntry struct {
@@ -64,8 +70,80 @@ type iceDescription struct {
 }
 
 type sdpSignal struct {
-	SDP sdpDescription `json:"sdp"`
-	ICE iceDescription `json:"ice"`
+	SDP     sdpDescription `json:"sdp"`
+	ICE     iceDescription `json:"ice"`
+	Signal  string         `json:"signal"`
+	Success bool           `json:"success,omitempty"`
+}
+
+type sdpAnswer struct {
+	Candidates []ice.Candidate
+	Password   string
+	Username   string
+	Offer      *sdp.Message
+}
+
+func newAnswer(o sdpAnswer) (string, error) {
+	firstCandidate := o.Candidates[0]
+	origin := sdp.Origin{
+		Username:    "-",
+		AddressType: "IP4",
+		Address:     "127.0.0.1",
+		NetworkType: "IN",
+
+		SessionID:      o.Offer.Origin.SessionID,
+		SessionVersion: o.Offer.Origin.SessionVersion,
+	}
+	var s sdp.Session
+	s = s.AddVersion(0).
+		AddOrigin(origin).
+		AddSessionName("-").
+		AddTiming(time.Time{}, time.Time{}).
+		AddAttribute("group", "bundle", "0").
+		AddAttribute("msid-semantic", " WMS").
+		AddMediaDescription(sdp.MediaDescription{
+			Type:     "application",
+			Port:     firstCandidate.Addr.Port,
+			Protocol: "DTLS/SCTP",
+			Formats: []string{
+				"5000",
+			},
+		}).
+		AddConnectionData(sdp.ConnectionData{
+			NetworkType: "IN",
+			AddressType: "IP4",
+			IP:          firstCandidate.Addr.IP,
+		})
+	for _, c := range o.Candidates {
+		foundationInt := binary.BigEndian.Uint32(c.Foundation)
+		elems := []string{
+			strconv.FormatUint(uint64(foundationInt), 10),
+			strconv.Itoa(c.ComponentID),
+			"udp",
+			strconv.Itoa(c.Priority),
+			c.Addr.IP.String(),
+			strconv.Itoa(c.Addr.Port),
+			"typ", "host",
+			"generation", "0",
+			"network-cost", "999",
+		}
+		s = s.AddAttribute("candidate", elems...)
+	}
+	for _, a := range []struct {
+		k, v string
+	}{
+		{"ice-ufrag", o.Username},
+		{"ice-pwd", o.Password},
+		// TODO: Use real fingerprint.
+		{"fingerprint", "sha-256 2A:C8:67:82:83:42:8E:AD:00:D3:3E:63:49:A8:78:94:6D:CB:1C:56:72:15:7D:BA:BE:45:14:8D:FA:EA:05:79"},
+		{"setup", "passive"},
+		{"mid", "0"},
+		{"sctpmap", "5000 webrtc-datachannel 1024"},
+	} {
+		s = s.AddAttribute(a.k, a.v)
+	}
+	buf := s.AppendTo(nil)
+	return string(buf), nil
 }
 
 func startNative(ctx context.Context) error {
@@ -84,6 +162,7 @@ func startNative(ctx context.Context) error {
 		_ = ws.Close()
 	}()
 	messages := make(chan *sdp.Message)
+	gotDescription := make(chan struct{})
 	go func() {
 		for {
 			buf := make([]byte, 1024)
@@ -97,6 +176,7 @@ func startNative(ctx context.Context) error {
 					log.Fatalln("failed to unmarshal json:", err)
 				}
 				if sig.SDP.SDP != "" {
+					fmt.Println(string(sig.SDP.SDP))
 					var s sdp.Session
 					s, err := sdp.DecodeSession([]byte(sig.SDP.SDP), s)
 					if err != nil {
@@ -107,6 +187,11 @@ func startNative(ctx context.Context) error {
 					if err = d.Decode(m); err != nil {
 						log.Println("failed to decode SDP message:", err)
 					}
+					e := json.NewEncoder(os.Stderr)
+					e.SetIndent("", "  ")
+					if err = e.Encode(m); err != nil {
+						log.Println("failed to encode json")
+					}
 					media := m.Medias[0]
 					fmt.Println("ufrag:", media.Attribute("ice-ufrag"), "pwd:", media.Attribute("ice-pwd"))
 					messages <- m
@@ -116,6 +201,11 @@ func startNative(ctx context.Context) error {
 						log.Fatalln("failed to parse ICE candidate:", err)
 					}
 					log.Println("parsed ICE candidate:", c.ConnectionAddress, c.ComponentID)
+				} else if sig.Signal != "" {
+					switch sig.Signal {
+					case "gotDescription":
+						gotDescription <- struct{}{}
+					}
 				} else {
 					log.Printf("got %s", buf[:n])
 				}
@@ -139,7 +229,7 @@ func startNative(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	a, err := ice.NewAgent(ice.WithLogger(logger), ice.WithRole(ice.Controlled))
+	a, err := ice.NewAgent(ice.WithLogger(logger), ice.WithRole(ice.Controlled), ice.WithIPv4Only)
 	if err != nil {
 		return err
 	}
@@ -152,40 +242,83 @@ func startNative(ctx context.Context) error {
 	if err = a.GatherCandidates(); err != nil {
 		return errors.Wrap(err, "failed to gather candidates")
 	}
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case m := <-messages:
-		log.Println("got offer:", len(m.Medias), "stream(s)")
-		media := m.Medias[0]
-		var candidates []ice.Candidate
-		for _, rawCandidate := range media.Attributes.Values("candidate") {
-			var c iceSDP.Candidate
-			if err := iceSDP.ParseAttribute([]byte(rawCandidate), &c); err != nil {
-				log.Fatalln("failed to parse ICE candidate:", err)
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-gotDescription:
+			log.Println("trying to conclude")
+			if err = a.Conclude(ctx); err != nil {
+				return err
 			}
-			cnd := ice.Candidate{
-				Type:        candidate.Host,
-				ComponentID: c.ComponentID,
-				Addr: ice.Addr{
-					IP:   c.ConnectionAddress.IP,
-					Port: c.Port,
+			msg, err := json.Marshal(sdpSignal{
+				Success: true,
+			})
+			fmt.Println("sending", string(msg))
+			if err != nil {
+				log.Fatalln(err)
+			}
+			if _, err = ws.Write(msg); err != nil {
+				log.Fatalln("failed to write to ws")
+			}
+			return nil
+		case m := <-messages:
+			log.Println("got offer:", len(m.Medias), "stream(s)")
+			media := m.Medias[0]
+			var candidates []ice.Candidate
+			for _, rawCandidate := range media.Attributes.Values("candidate") {
+				var c iceSDP.Candidate
+				if err := iceSDP.ParseAttribute([]byte(rawCandidate), &c); err != nil {
+					log.Fatalln("failed to parse ICE candidate:", err)
+				}
+				cnd := ice.Candidate{
+					Type:        candidate.Host,
+					ComponentID: c.ComponentID,
+					Addr: ice.Addr{
+						IP:   c.ConnectionAddress.IP,
+						Port: c.Port,
+					},
+					Priority: c.Priority,
+				}
+				cnd.Foundation = ice.Foundation(&cnd, ice.Addr{})
+				candidates = append(candidates, cnd)
+				log.Println("added candidate", cnd.Addr)
+			}
+			if err := a.AddRemoteCandidates(candidates); err != nil {
+				log.Fatalln("failed to add remote candidates:", err)
+			}
+			a.SetRemoteCredentials(media.Attribute("ice-ufrag"), media.Attribute("ice-pwd"))
+			if err := a.PrepareChecklistSet(); err != nil {
+				log.Fatalln("failed to prepare sets:", err)
+			}
+			log.Println("sending answer")
+			localCandidates, err := a.LocalCandidates()
+			if err != nil {
+				log.Fatalln(err)
+			}
+			sort.Sort(ice.Candidates(localCandidates))
+			answer, err := newAnswer(sdpAnswer{
+				Candidates: localCandidates,
+				Username:   ufrag,
+				Password:   pwd,
+				Offer:      m,
+			})
+			msg, err := json.Marshal(sdpSignal{
+				SDP: sdpDescription{
+					Type: "answer",
+					SDP:  strings.ReplaceAll(answer, "\n", "\r\n") + "\r\n",
 				},
-				Priority: c.Priority,
+			})
+			fmt.Println("sending", string(msg))
+			if err != nil {
+				log.Fatalln(err)
 			}
-			cnd.Foundation = ice.Foundation(&cnd, ice.Addr{})
-			candidates = append(candidates, cnd)
+			if _, err = ws.Write(msg); err != nil {
+				log.Fatalln("failed to write to ws")
+			}
+			log.Println("checklist init OK, wrote answer")
 		}
-		if err := a.AddRemoteCandidates(candidates); err != nil {
-			log.Fatalln("failed to add remote candidates:", err)
-		}
-		a.SetRemoteCredentials(media.Attribute("ice-ufrag"), media.Attribute("ice-password"))
-		if err := a.PrepareChecklistSet(); err != nil {
-			log.Fatalln("failed to prepare sets:", err)
-		}
-		log.Println("checklist init OK")
 	}
-	<-ctx.Done()
 	return nil
 }
 
@@ -241,7 +374,7 @@ func main() {
 		if *controlling {
 			// Waiting for controlled agent to start.
 			log.Println("waiting for controlled agent init")
-			getAddr := resolve("turn-controlled:8080")
+			getAddr := resolve(*controlledAddr)
 			getURL := fmt.Sprintf("http://%s/initialized", getAddr)
 			res, getErr := http.Get(getURL)
 			if getErr != nil {
@@ -277,9 +410,13 @@ func main() {
 		}
 	} else {
 		log.Println("running in native mode")
-		if err := startNative(ctx); err != nil {
-			log.Fatalln("failed to run native:", err)
-		}
+		go func() {
+			// TODO: Use dataChannels when implemented.
+			if err := startNative(ctx); err != nil {
+				log.Fatalln("failed to run native:", err)
+			}
+			gotSuccess <- struct{}{}
+		}()
 	}
 	select {
 	case <-gotSuccess:
