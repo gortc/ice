@@ -79,17 +79,6 @@
   version = "v1.2.0"
 
 [[projects]]
-  digest = "1:edf140c1cdda3f4ed3e29ea3dd024c3936c9953b32367249828871ce522b4e23"
-  name = "github.com/gortc/ice"
-  packages = [
-    "candidate",
-    "sdp",
-  ]
-  pruneopts = "UT"
-  revision = "0502d448b37789b0bed1d54ccd0adefaa9cefca0"
-  version = "v0.6.3"
-
-[[projects]]
   digest = "1:84fd2177baeb5296d58002aff69e4d6ccb0be78df1fb267fafdd4db25409a227"
   name = "github.com/gortc/sdp"
   packages = ["."]
