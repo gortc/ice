@@ -155,8 +155,8 @@ func (c *Candidate) String() string {
 		strconv.Itoa(c.Priority),
 		c.ConnectionAddress.String(),
 		strconv.Itoa(c.Port),
-		"typ", typToStr(c.Type),
-		"generation", strconv.Itoa(c.Generation),
+		aType, typToStr(c.Type),
+		aGeneration, strconv.Itoa(c.Generation),
 	}
 	for _, a := range c.Attributes {
 		parts = append(parts, byteStr(a.Key), byteStr(a.Value))
