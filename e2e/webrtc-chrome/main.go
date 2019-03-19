@@ -306,7 +306,7 @@ func startNative(ctx context.Context) error {
 			msg, err := json.Marshal(sdpSignal{
 				SDP: sdpDescription{
 					Type: "answer",
-					SDP:  strings.ReplaceAll(answer, "\n", "\r\n") + "\r\n",
+					SDP:  strings.Replace(answer, "\n", "\r\n", -1) + "\r\n",
 				},
 			})
 			fmt.Println("sending", string(msg))
