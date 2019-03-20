@@ -13,12 +13,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gortc/stun"
-	"github.com/gortc/turn"
 	"go.uber.org/zap"
 
 	ct "github.com/gortc/ice/candidate"
 	"github.com/gortc/ice/gather"
+	"github.com/gortc/stun"
+	"github.com/gortc/turn"
 )
 
 // Role represents ICE agent role, which can be controlling or controlled.
@@ -173,7 +173,7 @@ func WithSTUN(uri string) AgentOption {
 // WithTURN configures Agent to use TURN server.
 //
 // Use WithServer to add multiple servers at once.
-func WithTURN(uri string, username, credential string) AgentOption {
+func WithTURN(uri, username, credential string) AgentOption {
 	return func(a *Agent) error {
 		u, err := turn.ParseURI(uri)
 		if err != nil {
