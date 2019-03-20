@@ -304,6 +304,7 @@ func startNative(ctx context.Context) error {
 				Password:   pwd,
 				Offer:      m,
 			})
+			fmt.Println("answer:", answer)
 			msg, err := json.Marshal(sdpSignal{
 				SDP: sdpDescription{
 					Type: "answer",

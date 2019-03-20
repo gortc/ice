@@ -128,7 +128,7 @@ function gotMessageFromServer(message) {
                 serverConnection.send(JSON.stringify({'signal': "gotDescription"}));
             }
         }).catch(function (reason) {
-            console.log("failed to set remote description:", reason)
+            console.log("failed to set remote description: " + JSON.stringify(reason))
         });
     } else if(signal.ice) {
         peerConnection.addIceCandidate(new RTCIceCandidate(signal.ice)).then(function () {
