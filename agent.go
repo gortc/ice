@@ -116,8 +116,10 @@ func WithLogger(l *zap.Logger) AgentOption {
 	}
 }
 
+// Server represents ICE server (TURN or STUN) which will be used for
+// connectivity establishment.
 type Server struct {
-	URI        []string
+	URI        []string // STUN or TURN URI list
 	Username   string
 	Credential string
 }
