@@ -169,7 +169,7 @@ func TestAgent_handleBindingResponse(t *testing.T) {
 	}
 	at := &agentTransaction{
 		id:        stun.NewTransactionID(),
-		pair:      0,
+		pair:      getPairKey(pair),
 		checklist: 0,
 	}
 	a.SetRemoteCredentials("RFRAG", "RPASS")

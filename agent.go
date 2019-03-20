@@ -71,12 +71,33 @@ func (t transactionID) AddTo(m *stun.Message) error {
 	return nil
 }
 
+type pairKey struct {
+	LocalIP    [net.IPv6len]byte
+	RemoteIP   [net.IPv6len]byte
+	LocalPort  int
+	RemotePort int
+}
+
+func (k pairKey) Equal(p *Pair) bool {
+	b := getPairKey(p)
+	return k == b
+}
+
+func getPairKey(p *Pair) pairKey {
+	k := pairKey{}
+	copy(k.LocalIP[:], p.Local.Addr.IP)
+	copy(k.RemoteIP[:], p.Remote.Addr.IP)
+	k.LocalPort = p.Local.Addr.Port
+	k.RemotePort = p.Remote.Addr.Port
+	return k
+}
+
 // agentTransaction represents transaction in progress.
 //
 // Concurrent access is invalid.
 type agentTransaction struct {
 	checklist int
-	pair      int
+	pair      pairKey
 	priority  int
 	nominate  bool
 	id        transactionID
@@ -631,6 +652,17 @@ func (a *Agent) setPairState(checklist, pair int, state PairState) {
 	a.set[checklist] = c
 }
 
+func (a *Agent) setPairStateByKey(checklist int, k pairKey, state PairState) {
+	c := a.set[checklist]
+	for i := range c.Pairs {
+		if k.Equal(&c.Pairs[i]) {
+			c.Pairs[i].State = state
+			break
+		}
+	}
+	a.set[checklist] = c
+}
+
 var (
 	errNoPair      = errors.New("no pair in checklist can be picked")
 	errNoChecklist = errors.New("no checklist is active")
@@ -692,6 +724,16 @@ func (a *Agent) pickPair() (*Pair, error) {
 
 var errNotSTUNMessage = errors.New("packet is not STUN Message")
 
+func (a *Agent) getPair(streamID int, k pairKey) (*Pair, bool) {
+	set := a.set[streamID]
+	for i := range set.Pairs {
+		if k.Equal(&set.Pairs[i]) {
+			return &set.Pairs[i], true
+		}
+	}
+	return nil, false
+}
+
 func (a *Agent) processUDP(buf []byte, c *localUDPCandidate, addr *net.UDPAddr) error {
 	a.log.Debug("got udp packet",
 		zap.Stringer("local", c.candidate.Addr),
@@ -721,12 +763,12 @@ func (a *Agent) processUDP(buf []byte, c *localUDPCandidate, addr *net.UDPAddr) 
 	}
 
 	a.mux.Lock()
-	p := a.set[t.checklist].Pairs[t.pair]
+	p, _ := a.getPair(t.checklist, t.pair)
 	a.mux.Unlock()
 
 	switch m.Type {
 	case stun.BindingSuccess, stun.BindingError:
-		return a.handleBindingResponse(t, &p, m, raddr)
+		return a.handleBindingResponse(t, p, m, raddr)
 	default:
 		a.log.Debug("unknown message type", zap.Stringer("t", m.Type))
 	}
@@ -834,7 +876,7 @@ func (a *Agent) handleBindingResponse(t *agentTransaction, p *Pair, m *stun.Mess
 		// TODO: Handle nomination failure.
 
 		a.mux.Lock()
-		a.setPairState(t.checklist, t.pair, PairFailed)
+		a.setPairStateByKey(t.checklist, t.pair, PairFailed)
 		a.mux.Unlock()
 
 		a.log.Debug("response process failed", zap.Error(err),
@@ -845,7 +887,7 @@ func (a *Agent) handleBindingResponse(t *agentTransaction, p *Pair, m *stun.Mess
 	}
 
 	a.mux.Lock()
-	a.setPairState(t.checklist, t.pair, PairSucceeded)
+	a.setPairStateByKey(t.checklist, t.pair, PairSucceeded)
 	a.mux.Unlock()
 
 	a.log.Debug("response succeeded",
@@ -987,6 +1029,7 @@ func (a *Agent) startBinding(p *Pair, m *stun.Message, priority int, t time.Time
 		checklist: checklist,
 		priority:  priority,
 		nominate:  p.Nominated,
+		pair:      getPairKey(p),
 	}
 	a.tMux.Unlock()
 	udpAddr := &net.UDPAddr{
