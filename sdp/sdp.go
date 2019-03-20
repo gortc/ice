@@ -147,7 +147,7 @@ func typToStr(t ct.Type) string {
 	}
 }
 
-func (c *Candidate) String() string {
+func (c Candidate) String() string {
 	parts := []string{
 		strconv.Itoa(c.Foundation),
 		strconv.Itoa(c.ComponentID),
