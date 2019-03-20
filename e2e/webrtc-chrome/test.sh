@@ -43,7 +43,7 @@ docker run -e INTERFACE=${CAPTURE_INTERFACE} -e SUBNET=${NETWORK_SUBNET} -d \
 
 
 # build and run the composed services
-docker-compose --no-ansi -p ci build --parallel && docker-compose --no-ansi -p ci up -d
+docker-compose --no-ansi -p ci build && docker-compose --no-ansi -p ci up -d
 if [ $? -ne 0 ] ; then
   printf "${RED}Docker Compose Failed${NC}\n"
   exit -1
