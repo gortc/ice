@@ -11,7 +11,6 @@ import (
 	"net/http"
 	"os"
 	"sort"
-	"strconv"
 	"time"
 
 	"github.com/chromedp/chromedp"
@@ -116,18 +115,20 @@ func newAnswer(o sdpAnswer) (string, error) {
 		})
 	for _, c := range o.Candidates {
 		foundationInt := binary.BigEndian.Uint32(c.Foundation)
-		elems := []string{
-			strconv.FormatUint(uint64(foundationInt), 10),
-			strconv.Itoa(c.ComponentID),
-			"udp",
-			strconv.Itoa(c.Priority),
-			c.Addr.IP.String(),
-			strconv.Itoa(c.Addr.Port),
-			"typ", "host",
-			"generation", "0",
-			"network-cost", "999",
+		sdpCandidate := iceSDP.Candidate{
+			ComponentID: c.ComponentID,
+			Priority:    c.Priority,
+			Foundation:  int(foundationInt),
+			Type:        c.Type,
+			Port:        c.Addr.Port,
+			ConnectionAddress: iceSDP.Address{
+				Type: iceSDP.AddressIPv4,
+				IP:   c.Addr.IP,
+			},
+			Generation:  0,
+			NetworkCost: 999,
 		}
-		s = s.AddAttribute("candidate", elems...)
+		s = s.AddAttribute("candidate", sdpCandidate.String())
 	}
 	for _, a := range []struct {
 		k, v string
