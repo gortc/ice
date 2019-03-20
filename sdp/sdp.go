@@ -147,6 +147,7 @@ func typToStr(t ct.Type) string {
 	}
 }
 
+//nolint:gocritic
 func (c Candidate) String() string {
 	parts := []string{
 		strconv.Itoa(c.Foundation),
