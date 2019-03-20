@@ -14,11 +14,10 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/gortc/stun"
-	"github.com/gortc/turn"
-
 	ct "github.com/gortc/ice/candidate"
 	"github.com/gortc/ice/gather"
+	"github.com/gortc/stun"
+	"github.com/gortc/turn"
 )
 
 // Role represents ICE agent role, which can be controlling or controlled.
