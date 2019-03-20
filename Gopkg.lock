@@ -102,6 +102,14 @@
   version = "v1.18.5"
 
 [[projects]]
+  digest = "1:b727140997993a29c318c421ed1e559744c17ea6756af67ce608237730144f5a"
+  name = "github.com/gortc/turn"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "ab450b60e25e0b0188a9337b18e8e144b910e845"
+  version = "v0.6.7"
+
+[[projects]]
   branch = "master"
   digest = "1:957b15d94d4771a424b6ccb959214fe8caafb7d791d0f588ac572b7cdc894457"
   name = "github.com/knq/snaker"
@@ -198,6 +206,7 @@
     "github.com/gorilla/websocket",
     "github.com/gortc/sdp",
     "github.com/gortc/stun",
+    "github.com/gortc/turn",
     "github.com/pkg/errors",
     "go.uber.org/zap",
     "golang.org/x/net/websocket",
