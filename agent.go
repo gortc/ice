@@ -9,10 +9,12 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/gortc/stun"
+	"github.com/gortc/turn"
 	"go.uber.org/zap"
 
 	ct "github.com/gortc/ice/candidate"
@@ -114,6 +116,78 @@ func WithLogger(l *zap.Logger) AgentOption {
 	}
 }
 
+type Server struct {
+	URI        []string
+	Username   string
+	Credential string
+}
+
+// WithServer configures ICE server or servers for Agent.
+func WithServer(servers ...Server) AgentOption {
+	return func(a *Agent) error {
+		for _, s := range servers {
+			for _, uri := range s.URI {
+				if strings.HasPrefix(uri, stun.Scheme) {
+					u, err := stun.ParseURI(uri)
+					if err != nil {
+						return err
+					}
+					a.stun = append(a.stun, stunServerOptions{
+						username: s.Username,
+						password: s.Credential,
+						uri:      u,
+					})
+				} else {
+					u, err := turn.ParseURI(uri)
+					if err != nil {
+						return err
+					}
+					a.turn = append(a.turn, turnServerOptions{
+						username: s.Username,
+						password: s.Credential,
+						uri:      u,
+					})
+				}
+			}
+		}
+		return nil
+	}
+}
+
+// WithSTUN configures Agent to use STUN server.
+//
+// Use WithServer to add STUN with credentials or multiple servers at once.
+func WithSTUN(uri string) AgentOption {
+	return func(a *Agent) error {
+		u, err := stun.ParseURI(uri)
+		if err != nil {
+			return err
+		}
+		a.stun = append(a.stun, stunServerOptions{
+			uri: u,
+		})
+		return nil
+	}
+}
+
+// WithTURN configures Agent to use TURN server.
+//
+// Use WithServer to add multiple servers at once.
+func WithTURN(uri string, username, credential string) AgentOption {
+	return func(a *Agent) error {
+		u, err := turn.ParseURI(uri)
+		if err != nil {
+			return err
+		}
+		a.turn = append(a.turn, turnServerOptions{
+			password: credential,
+			username: username,
+			uri:      u,
+		})
+		return nil
+	}
+}
+
 var WithIPv4Only AgentOption = func(a *Agent) error {
 	a.ipv4Only = true
 	return nil
@@ -179,6 +253,18 @@ type candidateGatherer interface {
 	gatherUDP(opt gathererOptions) ([]localUDPCandidate, error)
 }
 
+type stunServerOptions struct {
+	uri      stun.URI
+	username string
+	password string
+}
+
+type turnServerOptions struct {
+	uri      turn.URI
+	username string
+	password string
+}
+
 // Agent implements ICE Agent.
 type Agent struct {
 	set              ChecklistSet
@@ -204,6 +290,9 @@ type Agent struct {
 
 	maxChecks int
 	ta        time.Duration // section 15.2, Ta
+
+	turn []turnServerOptions
+	stun []stunServerOptions
 }
 
 func (a *Agent) SetLocalCredentials(username, password string) {

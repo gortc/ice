@@ -1405,3 +1405,75 @@ func TestAgent_Conclude(t *testing.T) {
 		<-done
 	})
 }
+
+func TestWithServer(t *testing.T) {
+	t.Run("Multiple", func(t *testing.T) {
+		a, err := NewAgent(WithServer(Server{
+			URI: []string{
+				"turns:turnserver.example.org",
+				"turn:turnserver.example.org",
+			},
+			Username:   "webrtc",
+			Credential: "turnpassword",
+		}, Server{
+			URI: []string{"stun:stunserver.example.org"},
+		}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(a.turn) != 2 {
+			t.Error("unexpected TURN server list length")
+		}
+		if len(a.stun) != 1 {
+			t.Error("unexpected STUN server list length")
+		}
+	})
+	t.Run("Bad scheme", func(t *testing.T) {
+		_, err := NewAgent(WithServer(Server{
+			URI: []string{"bad:stunserver.example.org"},
+		}))
+		if err == nil {
+			t.Fatal("should fail")
+		}
+	})
+	t.Run("WithSTUN", func(t *testing.T) {
+		t.Run("Multiple", func(t *testing.T) {
+			a, err := NewAgent(
+				WithSTUN("stun:first:3312"),
+				WithSTUN("stuns:second:3315"),
+			)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(a.stun) != 2 {
+				t.Error("unexpected STUN server list length")
+			}
+		})
+		t.Run("Bad scheme", func(t *testing.T) {
+			_, err := NewAgent(WithSTUN("bad:stunserver.example.org"))
+			if err == nil {
+				t.Fatal("should fail")
+			}
+		})
+	})
+	t.Run("WithTURN", func(t *testing.T) {
+		t.Run("Multiple", func(t *testing.T) {
+			a, err := NewAgent(
+				WithTURN("turn:first:3312", "username1", "password1"),
+				WithTURN("turns:second:3315", "username2", "password2"),
+			)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(a.turn) != 2 {
+				t.Error("unexpected STUN server list length")
+			}
+		})
+		t.Run("Bad scheme", func(t *testing.T) {
+			_, err := NewAgent(WithTURN("stun:first:3312", "foo", "bar"))
+			if err == nil {
+				t.Fatal("should fail")
+			}
+		})
+	})
+}
