@@ -137,6 +137,7 @@ func (p *Pair) SetFoundation() {
 	p.Foundation = f
 }
 
+// SetPriority calculates and sets pair priority based on role and candidates.
 func (p *Pair) SetPriority(role Role) {
 	var (
 		controlling = p.Local.Priority

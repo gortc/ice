@@ -10,6 +10,7 @@ import "fmt"
 // future.
 type Type byte
 
+// UnmarshalText implements TextUnmarshaler.
 func (t *Type) UnmarshalText(text []byte) error {
 	for k, v := range candidateTypeToStr {
 		if string(text) == v {
@@ -20,6 +21,7 @@ func (t *Type) UnmarshalText(text []byte) error {
 	return fmt.Errorf("unknown candidate type value: %q", text)
 }
 
+// MarshalText implements TextMarshaler.
 func (t Type) MarshalText() (text []byte, err error) {
 	return []byte(candidateTypeToStr[t]), nil
 }
@@ -65,6 +67,7 @@ func (t Type) String() string {
 // Protocol is protocol for address.
 type Protocol byte
 
+// UnmarshalText implements TextUnmarshaler.
 func (t *Protocol) UnmarshalText(s []byte) error {
 	switch string(s) {
 	case "udp", "UDP":
@@ -75,6 +78,7 @@ func (t *Protocol) UnmarshalText(s []byte) error {
 	return nil
 }
 
+// MarshalText implements TextMarshaler.
 func (t Protocol) MarshalText() ([]byte, error) {
 	return []byte(t.String()), nil
 }

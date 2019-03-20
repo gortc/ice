@@ -92,6 +92,7 @@ type agentTransaction struct {
 	// ...
 }
 
+// AgentOption represents configuration option for Agent.
 type AgentOption func(a *Agent) error
 
 func withGatherer(g candidateGatherer) AgentOption {
@@ -109,6 +110,7 @@ func WithRole(r Role) AgentOption {
 	}
 }
 
+// WithLogger sets *zap.Logger for Agent.
 func WithLogger(l *zap.Logger) AgentOption {
 	return func(a *Agent) error {
 		a.log = l
@@ -190,6 +192,7 @@ func WithTURN(uri, username, credential string) AgentOption {
 	}
 }
 
+// WithIPv4Only enables IPv4-only mode, where IPv6 candidates are not used.
 var WithIPv4Only AgentOption = func(a *Agent) error {
 	a.ipv4Only = true
 	return nil
@@ -197,6 +200,8 @@ var WithIPv4Only AgentOption = func(a *Agent) error {
 
 const defaultMaxChecks = 100
 
+// NewAgent initializes new ICE agent using provided options and returns error
+// if any.
 func NewAgent(opts ...AgentOption) (*Agent, error) {
 	a := &Agent{
 		gatherer:  systemCandidateGatherer{addr: gather.DefaultGatherer},
@@ -297,6 +302,7 @@ type Agent struct {
 	stun []stunServerOptions
 }
 
+// SetLocalCredentials sets local username fragment and password.
 func (a *Agent) SetLocalCredentials(username, password string) {
 	a.localUsername = username
 	a.localPassword = password
@@ -440,7 +446,7 @@ func (a *Agent) LocalCandidates() ([]Candidate, error) {
 
 var errNoStreamFound = errors.New("data stream with provided id not found")
 
-// LocalCandidates returns list of local candidates for stream.
+// LocalCandidatesForStream returns list of local candidates for stream.
 func (a *Agent) LocalCandidatesForStream(streamID int) ([]Candidate, error) {
 	if len(a.localCandidates) <= streamID {
 		return nil, errNoStreamFound
@@ -458,6 +464,8 @@ func (a *Agent) AddRemoteCandidates(c []Candidate) error {
 	return a.AddRemoteCandidatesForStream(defaultStreamID, c)
 }
 
+// AddRemoteCandidatesForStream adds remote candidate list, associating
+// them with data stream with provided id.
 func (a *Agent) AddRemoteCandidatesForStream(streamID int, c []Candidate) error {
 	if len(a.remoteCandidates) > streamID {
 		return errStreamAlreadyExist

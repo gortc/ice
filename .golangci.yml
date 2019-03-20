@@ -27,8 +27,10 @@ linters-settings:
       - sloppyReassign
 
 issues:
+  exclude-use-default: false
   exclude:
     - "isOptional is a pure function"
+    - "should have a package comment, unless it's in another file for this package"
   exclude-rules:
     - text: "string `(Unknown|<nil>|UDP)`"
       linters:

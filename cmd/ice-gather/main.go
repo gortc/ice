@@ -1,3 +1,4 @@
+// Command gathers local addresses and prints them.
 package main
 
 import (
@@ -44,6 +45,6 @@ func main() {
 		}
 		ct.Foundation = ice.Foundation(ct, ice.Addr{})
 		fmt.Println("   ", "bind ok", c.LocalAddr(), "0x"+hex.EncodeToString(ct.Foundation))
-		c.Close()
+		_ = c.Close()
 	}
 }

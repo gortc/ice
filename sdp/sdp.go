@@ -115,10 +115,12 @@ type Candidate struct {
 	Type              ct.Type
 }
 
+// UnmarshalText implements TextUnmarshaler.
 func (c *Candidate) UnmarshalText(text []byte) error {
 	return ParseAttribute(text, c)
 }
 
+// MarshalText implements TextMarshaler.
 func (c *Candidate) MarshalText() (text []byte, err error) {
 	return []byte(c.String()), nil
 }
