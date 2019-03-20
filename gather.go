@@ -16,7 +16,7 @@ type systemCandidateGatherer struct {
 	addr gather.Gatherer
 }
 
-func (g systemCandidateGatherer) gatherUDP(opt gathererOptions) ([]localUDPCandidate, error) {
+func (g systemCandidateGatherer) gatherUDP(opt gathererOptions) ([]*localUDPCandidate, error) {
 	addrs, err := g.addr.Gather()
 	if err != nil {
 		// Failed to gather host addresses.
@@ -26,7 +26,7 @@ func (g systemCandidateGatherer) gatherUDP(opt gathererOptions) ([]localUDPCandi
 	if err != nil {
 		return nil, err
 	}
-	var candidates []localUDPCandidate
+	var candidates []*localUDPCandidate
 	for component := 1; component <= opt.Components; component++ {
 		for _, addr := range hostAddr {
 			if opt.IPv4Only && addr.IP.To4() == nil {
@@ -58,7 +58,7 @@ func (g systemCandidateGatherer) gatherUDP(opt gathererOptions) ([]localUDPCandi
 			}
 			c.Foundation = Foundation(&c, Addr{})
 			c.Priority = Priority(TypePreference(c.Type), addr.LocalPreference, c.ComponentID)
-			candidates = append(candidates, localUDPCandidate{
+			candidates = append(candidates, &localUDPCandidate{
 				candidate: c,
 				conn:      l,
 			})

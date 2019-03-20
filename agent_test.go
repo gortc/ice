@@ -149,7 +149,7 @@ func TestAgent_handleBindingResponse(t *testing.T) {
 	}
 	a := &Agent{
 		set: ChecklistSet{cl0},
-		localCandidates: [][]localUDPCandidate{
+		localCandidates: [][]*localUDPCandidate{
 			{
 				{candidate: Candidate{
 					Addr: Addr{
@@ -218,7 +218,7 @@ func TestAgent_check(t *testing.T) {
 		IP:   pair.Local.Addr.IP,
 		Port: pair.Local.Addr.Port,
 	}
-	a.localCandidates = [][]localUDPCandidate{
+	a.localCandidates = [][]*localUDPCandidate{
 		{
 			{
 				candidate: pair.Local,
@@ -919,10 +919,10 @@ func mustClose(t *testing.T, closer io.Closer) {
 }
 
 type mockGatherer struct {
-	udp func(opt gathererOptions) ([]localUDPCandidate, error)
+	udp func(opt gathererOptions) ([]*localUDPCandidate, error)
 }
 
-func (g *mockGatherer) gatherUDP(opt gathererOptions) ([]localUDPCandidate, error) {
+func (g *mockGatherer) gatherUDP(opt gathererOptions) ([]*localUDPCandidate, error) {
 	return g.udp(opt)
 }
 
@@ -1025,7 +1025,7 @@ func TestAgent(t *testing.T) {
 	})
 	t.Run("Custom gatherer", func(t *testing.T) {
 		a, err := NewAgent(withGatherer(&mockGatherer{
-			udp: func(opt gathererOptions) (candidates []localUDPCandidate, e error) {
+			udp: func(opt gathererOptions) (candidates []*localUDPCandidate, e error) {
 				ip := net.IPv4(10, 0, 0, 2)
 				addrs, err := HostAddresses([]gather.Addr{
 					{
@@ -1041,7 +1041,7 @@ func TestAgent(t *testing.T) {
 					Port:  30001,
 					Proto: candidate.UDP,
 				}
-				c := localUDPCandidate{
+				c := &localUDPCandidate{
 					candidate: Candidate{
 						Base: Addr{
 							IP:    a.IP,
@@ -1058,7 +1058,7 @@ func TestAgent(t *testing.T) {
 					},
 					conn: mockPacketConn{},
 				}
-				return []localUDPCandidate{c}, nil
+				return []*localUDPCandidate{c}, nil
 			},
 		}))
 		if err != nil {
@@ -1069,7 +1069,7 @@ func TestAgent(t *testing.T) {
 			t.Errorf("failed to gather candidates: %v", err)
 		}
 		b, err := NewAgent(withGatherer(&mockGatherer{
-			udp: func(opt gathererOptions) (candidates []localUDPCandidate, e error) {
+			udp: func(opt gathererOptions) (candidates []*localUDPCandidate, e error) {
 				ip := net.IPv4(10, 0, 0, 2)
 				addrs, addrErr := HostAddresses([]gather.Addr{
 					{
@@ -1085,7 +1085,7 @@ func TestAgent(t *testing.T) {
 					Port:  30002,
 					Proto: candidate.UDP,
 				}
-				c := localUDPCandidate{
+				c := &localUDPCandidate{
 					candidate: Candidate{
 						Base: Addr{
 							IP:    a.IP,
@@ -1102,7 +1102,7 @@ func TestAgent(t *testing.T) {
 					},
 					conn: mockPacketConn{},
 				}
-				return []localUDPCandidate{c}, nil
+				return []*localUDPCandidate{c}, nil
 			},
 		}), WithRole(Controlled))
 		if err != nil {
@@ -1210,7 +1210,7 @@ func TestAgent_Conclude(t *testing.T) {
 		}
 		connL, connR := packetPipe(lAddr, rAddr)
 		a, err := NewAgent(withGatherer(&mockGatherer{
-			udp: func(opt gathererOptions) (candidates []localUDPCandidate, e error) {
+			udp: func(opt gathererOptions) (candidates []*localUDPCandidate, e error) {
 				addrs, addrErr := HostAddresses([]gather.Addr{
 					{
 						IP:         lAddr.IP,
@@ -1225,7 +1225,7 @@ func TestAgent_Conclude(t *testing.T) {
 					Port:  lAddr.Port,
 					Proto: candidate.UDP,
 				}
-				c := localUDPCandidate{
+				c := &localUDPCandidate{
 					log: log.Named("L").Named("C"),
 					candidate: Candidate{
 						Base: Addr{
@@ -1243,7 +1243,7 @@ func TestAgent_Conclude(t *testing.T) {
 					},
 					conn: connL,
 				}
-				return []localUDPCandidate{c}, nil
+				return []*localUDPCandidate{c}, nil
 			},
 		}), WithLogger(log.Named("L")))
 		if err != nil {
@@ -1254,7 +1254,7 @@ func TestAgent_Conclude(t *testing.T) {
 			t.Errorf("failed to gather candidates: %v", err)
 		}
 		b, err := NewAgent(withGatherer(&mockGatherer{
-			udp: func(opt gathererOptions) (candidates []localUDPCandidate, e error) {
+			udp: func(opt gathererOptions) (candidates []*localUDPCandidate, e error) {
 				addrs, addrErr := HostAddresses([]gather.Addr{
 					{
 						IP:         rAddr.IP,
@@ -1269,7 +1269,7 @@ func TestAgent_Conclude(t *testing.T) {
 					Port:  rAddr.Port,
 					Proto: candidate.UDP,
 				}
-				c := localUDPCandidate{
+				c := &localUDPCandidate{
 					log: log.Named("R").Named("C"),
 					candidate: Candidate{
 						Base: Addr{
@@ -1287,7 +1287,7 @@ func TestAgent_Conclude(t *testing.T) {
 					},
 					conn: connR,
 				}
-				return []localUDPCandidate{c}, nil
+				return []*localUDPCandidate{c}, nil
 			},
 		}), WithRole(Controlled), WithLogger(log.Named("R")))
 		if err != nil {
@@ -1345,13 +1345,13 @@ func TestAgent_Conclude(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		a, err := NewAgent(WithLogger(log.Named("L")))
+		a, err := NewAgent(WithLogger(log.Named("L")), WithSTUN("stun:stun.l.google.com:19302"))
 		if err != nil {
 			t.Fatal(err)
 		}
 		defer mustClose(t, a)
 		if err = a.GatherCandidates(); err != nil {
-			t.Errorf("failed to gather candidates: %v", err)
+			t.Fatalf("failed to gather candidates: %v", err)
 		}
 		b, err := NewAgent(WithRole(Controlled), WithLogger(log.Named("R")))
 		if err != nil {

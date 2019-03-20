@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -245,6 +246,14 @@ type localUDPCandidate struct {
 	candidate Candidate
 	conn      net.PacketConn
 	stream    int
+
+	pipes []localPipe
+	mux   sync.Mutex
+}
+
+type localPipe struct {
+	addr *net.UDPAddr
+	conn net.Conn
 }
 
 func (c *localUDPCandidate) Close() error {
@@ -262,6 +271,25 @@ func (c *localUDPCandidate) readUntilClose(a *Agent) {
 		if !ok {
 			break
 		}
+		c.mux.Lock()
+		var pipe localPipe
+		for _, p := range c.pipes {
+			if !p.addr.IP.Equal(udpAddr.IP) {
+				continue
+			}
+			if p.addr.Port != udpAddr.Port {
+				continue
+			}
+			pipe = p
+		}
+		c.mux.Unlock()
+		if pipe.addr != nil {
+			_, err = pipe.conn.Write(buf[:n])
+			if err != nil {
+				c.log.Debug("pipe write failed", zap.Error(err))
+			}
+			continue
+		}
 		go func() {
 			if err := a.processUDP(buf[:n], c, udpAddr); err != nil {
 				c.log.Error("processUDP failed", zap.Error(err))
@@ -278,7 +306,7 @@ type gathererOptions struct {
 }
 
 type candidateGatherer interface {
-	gatherUDP(opt gathererOptions) ([]localUDPCandidate, error)
+	gatherUDP(opt gathererOptions) ([]*localUDPCandidate, error)
 }
 
 type stunServerOptions struct {
@@ -305,7 +333,7 @@ type Agent struct {
 	rand             io.Reader
 	t                map[transactionID]*agentTransaction
 	tMux             sync.Mutex
-	localCandidates  [][]localUDPCandidate
+	localCandidates  [][]*localUDPCandidate
 	remoteCandidates [][]Candidate
 	gatherer         candidateGatherer
 	log              *zap.Logger
@@ -410,7 +438,7 @@ func (a *Agent) Conclude(ctx context.Context) error {
 	}
 }
 
-func (a *Agent) localCandidateByAddr(addr Addr) (candidate localUDPCandidate, ok bool) {
+func (a *Agent) localCandidateByAddr(addr Addr) (candidate *localUDPCandidate, ok bool) {
 	for _, cs := range a.localCandidates {
 		for i := range cs {
 			if addr.Equal(cs[i].candidate.Addr) {
@@ -418,7 +446,7 @@ func (a *Agent) localCandidateByAddr(addr Addr) (candidate localUDPCandidate, ok
 			}
 		}
 	}
-	return localUDPCandidate{}, false
+	return nil, false
 }
 
 // Close immediately stops all transactions and frees underlying resources.
@@ -450,13 +478,91 @@ func (a *Agent) GatherCandidatesForStream(streamID int) error {
 	if err != nil {
 		return err
 	}
+	a.localCandidates = append(a.localCandidates, candidates)
 	for i := range candidates {
 		candidates[i].log = a.log.Named("candidate").With(
 			zap.Stringer("addr", candidates[i].candidate.Addr),
 		)
 		go candidates[i].readUntilClose(a)
 	}
-	a.localCandidates = append(a.localCandidates, candidates)
+	if len(a.stun) > 0 {
+		if err = a.gatherServerReflexiveCandidatesFor(streamID); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func resolveSTUN(uri stun.URI) (*net.UDPAddr, error) {
+	if uri.Port == 0 {
+		uri.Port = stun.DefaultPort
+	}
+	hostPort := net.JoinHostPort(uri.Host, strconv.Itoa(uri.Port))
+	addr, err := net.ResolveUDPAddr("udp", hostPort)
+	return addr, err
+}
+
+func (a *Agent) gatherServerReflexiveCandidatesFor(streamID int) error {
+	localCandidates := a.localCandidates[streamID]
+	for _, c := range localCandidates {
+		if c.candidate.Addr.IP.To4() == nil {
+			continue
+		}
+		for _, s := range a.stun {
+			a.log.Debug("trying STUN",
+				zap.Stringer("uri", s.uri), zap.Stringer("addr", c.candidate.Addr),
+			)
+			addr, err := resolveSTUN(s.uri)
+			if err != nil {
+				return err
+			}
+			lconn, rconn := net.Pipe()
+			c.mux.Lock()
+			c.pipes = append(c.pipes, localPipe{
+				addr: addr,
+				conn: rconn,
+			})
+			c.mux.Unlock()
+			go func() {
+				for {
+					buf := make([]byte, 1024)
+					n, readErr := rconn.Read(buf)
+					if readErr != nil {
+						break
+					}
+					_, writeErr := c.conn.WriteTo(buf[:n], addr)
+					if writeErr != nil {
+						_ = rconn.Close()
+					}
+				}
+			}()
+			// TODO: Setup correct RTO.
+			client, err := stun.NewClient(lconn, stun.WithRTO(a.ta))
+			if err != nil {
+				return err
+			}
+			var bindErr error
+			if doErr := client.Do(stun.MustBuild(stun.TransactionID, stun.BindingRequest, stun.Fingerprint), func(event stun.Event) {
+				if event.Error != nil {
+					bindErr = event.Error
+					return
+				}
+				var mappedAddr stun.XORMappedAddress
+				if getErr := mappedAddr.GetFrom(event.Message); getErr != nil {
+					bindErr = getErr
+				}
+				a.log.Debug("got server reflexive candidate", zap.Stringer("addr", mappedAddr))
+			}); doErr != nil {
+				return doErr
+			}
+			if err = client.Close(); err != nil {
+				return err
+			}
+			if bindErr != nil {
+				a.log.Debug("binding error", zap.Error(bindErr))
+			}
+		}
+	}
 	return nil
 }
 
@@ -607,7 +713,7 @@ func (a *Agent) addPeerReflexive(t *agentTransaction, p *Pair, addr Addr) error 
 	if !ok {
 		return errCandidateNotFound
 	}
-	a.localCandidates[c.stream] = append(a.localCandidates[c.stream], localUDPCandidate{
+	a.localCandidates[c.stream] = append(a.localCandidates[c.stream], &localUDPCandidate{
 		conn:      c.conn,
 		candidate: pr,
 		stream:    c.stream,
