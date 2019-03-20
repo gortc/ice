@@ -1345,7 +1345,10 @@ func TestAgent_Conclude(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		a, err := NewAgent(WithLogger(log.Named("L")), WithSTUN("stun:stun.l.google.com:19302"))
+		a, err := NewAgent(WithLogger(log.Named("L")),
+			WithSTUN("stun:stun.l.google.com:19302"),
+			WithTURN("turn:turn.gortc.io:3478", "user", "secret"),
+		)
 		if err != nil {
 			t.Fatal(err)
 		}

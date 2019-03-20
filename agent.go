@@ -246,6 +246,7 @@ type localUDPCandidate struct {
 	candidate Candidate
 	conn      net.PacketConn
 	stream    int
+	alloc     *turn.Allocation
 
 	pipes []localPipe
 	mux   sync.Mutex
@@ -490,6 +491,11 @@ func (a *Agent) GatherCandidatesForStream(streamID int) error {
 			return err
 		}
 	}
+	if len(a.turn) > 0 {
+		if err = a.gatherRelayedCandidatesFor(streamID); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -500,6 +506,72 @@ func resolveSTUN(uri stun.URI) (*net.UDPAddr, error) {
 	hostPort := net.JoinHostPort(uri.Host, strconv.Itoa(uri.Port))
 	addr, err := net.ResolveUDPAddr("udp", hostPort)
 	return addr, err
+}
+
+func resolveTURN(uri turn.URI) (*net.UDPAddr, error) {
+	if uri.Port == 0 {
+		uri.Port = turn.DefaultPort
+	}
+	hostPort := net.JoinHostPort(uri.Host, strconv.Itoa(uri.Port))
+	addr, err := net.ResolveUDPAddr("udp", hostPort)
+	return addr, err
+}
+
+func (a *Agent) gatherRelayedCandidatesFor(streamID int) error {
+	localCandidates := a.localCandidates[streamID]
+	for _, c := range localCandidates {
+		if c.candidate.Addr.IP.To4() == nil {
+			continue
+		}
+		for _, s := range a.turn {
+			a.log.Debug("trying TURN",
+				zap.Stringer("uri", s.uri), zap.Stringer("addr", c.candidate.Addr),
+			)
+			addr, err := resolveTURN(s.uri)
+			if err != nil {
+				return err
+			}
+			lconn, rconn := net.Pipe()
+			c.mux.Lock()
+			c.pipes = append(c.pipes, localPipe{
+				addr: addr,
+				conn: rconn,
+			})
+			c.mux.Unlock()
+			go func() {
+				for {
+					buf := make([]byte, 1024)
+					n, readErr := rconn.Read(buf)
+					if readErr != nil {
+						break
+					}
+					_, writeErr := c.conn.WriteTo(buf[:n], addr)
+					if writeErr != nil {
+						_ = rconn.Close()
+					}
+				}
+			}()
+			// TODO: Setup correct RTO.
+			client, err := turn.NewClient(turn.ClientOptions{
+				Conn:     lconn,
+				Username: s.username,
+				Password: s.password,
+				Log:      a.log.Named("turn"),
+				RTO:      a.ta / 2,
+			})
+			if err != nil {
+				return err
+			}
+			alloc, err := client.Allocate()
+			if err != nil {
+				a.log.Warn("failed to allocate", zap.Error(err))
+				continue
+			}
+			c.alloc = alloc
+			a.log.Debug("turn allocated")
+		}
+	}
+	return nil
 }
 
 func (a *Agent) gatherServerReflexiveCandidatesFor(streamID int) error {
@@ -537,7 +609,7 @@ func (a *Agent) gatherServerReflexiveCandidatesFor(streamID int) error {
 				}
 			}()
 			// TODO: Setup correct RTO.
-			client, err := stun.NewClient(lconn, stun.WithRTO(a.ta))
+			client, err := stun.NewClient(lconn, stun.WithRTO(a.ta/2))
 			if err != nil {
 				return err
 			}
