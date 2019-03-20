@@ -12,11 +12,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gortc/stun"
+	"go.uber.org/zap"
+
 	ct "github.com/gortc/ice/candidate"
 	"github.com/gortc/ice/gather"
-	"github.com/gortc/stun"
-
-	"go.uber.org/zap"
 )
 
 // Role represents ICE agent role, which can be controlling or controlled.
@@ -90,27 +90,33 @@ type agentTransaction struct {
 	// ...
 }
 
-type AgentOption func(a *Agent)
+type AgentOption func(a *Agent) error
 
 func withGatherer(g candidateGatherer) AgentOption {
-	return func(a *Agent) { a.gatherer = g }
+	return func(a *Agent) error {
+		a.gatherer = g
+		return nil
+	}
 }
 
 // WithRole sets agent mode to Controlling or Controlled.
 func WithRole(r Role) AgentOption {
-	return func(a *Agent) {
+	return func(a *Agent) error {
 		a.role = r
+		return nil
 	}
 }
 
 func WithLogger(l *zap.Logger) AgentOption {
-	return func(a *Agent) {
+	return func(a *Agent) error {
 		a.log = l
+		return nil
 	}
 }
 
-var WithIPv4Only AgentOption = func(a *Agent) {
+var WithIPv4Only AgentOption = func(a *Agent) error {
 	a.ipv4Only = true
+	return nil
 }
 
 const defaultMaxChecks = 100
@@ -122,7 +128,9 @@ func NewAgent(opts ...AgentOption) (*Agent, error) {
 		ta:        defaultAgentTa,
 	}
 	for _, o := range opts {
-		o(a)
+		if err := o(a); err != nil {
+			return nil, err
+		}
 	}
 	if err := a.init(); err != nil {
 		return nil, err
