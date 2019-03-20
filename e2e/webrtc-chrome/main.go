@@ -93,12 +93,13 @@ func newAnswer(o sdpAnswer) (string, error) {
 		SessionID:      o.Offer.Origin.SessionID,
 		SessionVersion: o.Offer.Origin.SessionVersion,
 	}
+	group := o.Offer.Medias[0].Attribute("mid")
 	var s sdp.Session
 	s = s.AddVersion(0).
 		AddOrigin(origin).
 		AddSessionName("-").
 		AddTiming(time.Time{}, time.Time{}).
-		AddAttribute("group", "bundle", "0").
+		AddAttribute("group", "bundle", group).
 		AddAttribute("msid-semantic", " WMS").
 		AddMediaDescription(sdp.MediaDescription{
 			Type:     "application",
@@ -136,7 +137,7 @@ func newAnswer(o sdpAnswer) (string, error) {
 		// TODO: Use real fingerprint.
 		{"fingerprint", "sha-256 2A:C8:67:82:83:42:8E:AD:00:D3:3E:63:49:A8:78:94:6D:CB:1C:56:72:15:7D:BA:BE:45:14:8D:FA:EA:05:79"},
 		{"setup", "passive"},
-		{"mid", "0"},
+		{"mid", group},
 		{"sctpmap", "5000 webrtc-datachannel 1024"},
 	} {
 		s = s.AddAttribute(a.k, a.v)
