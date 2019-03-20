@@ -286,10 +286,11 @@ func (c *localUDPCandidate) readUntilClose(a *Agent) {
 		c.mux.Unlock()
 		if pipe.addr != nil {
 			_, err = pipe.conn.Write(buf[:n])
-			if err != nil {
+			if err != nil && err != io.ErrClosedPipe {
 				c.log.Debug("pipe write failed", zap.Error(err))
+			} else {
+				continue
 			}
-			continue
 		}
 		go func() {
 			if err := a.processUDP(buf[:n], c, udpAddr); err != nil {
@@ -547,6 +548,7 @@ func (a *Agent) gatherRelayedCandidatesFor(streamID int) error {
 					}
 					_, writeErr := c.conn.WriteTo(buf[:n], addr)
 					if writeErr != nil {
+						a.log.Debug("WriteTo failed", zap.Error(writeErr))
 						_ = rconn.Close()
 					}
 				}
@@ -556,7 +558,7 @@ func (a *Agent) gatherRelayedCandidatesFor(streamID int) error {
 				Conn:     lconn,
 				Username: s.username,
 				Password: s.password,
-				Log:      a.log.Named("turn"),
+				Log:      a.log.Named("turn").With(zap.Stringer("local", c.candidate.Addr)),
 				RTO:      a.ta / 2,
 			})
 			if err != nil {
@@ -604,6 +606,7 @@ func (a *Agent) gatherServerReflexiveCandidatesFor(streamID int) error {
 					}
 					_, writeErr := c.conn.WriteTo(buf[:n], addr)
 					if writeErr != nil {
+						a.log.Debug("WriteTo failed", zap.Error(writeErr))
 						_ = rconn.Close()
 					}
 				}
