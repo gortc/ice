@@ -204,3 +204,53 @@ func NewPairs(local, remote Candidates) Pairs {
 	}
 	return p
 }
+
+const maxPairFoundationBytes = 64
+
+type foundationKey [maxPairFoundationBytes]byte
+
+type foundationSet map[foundationKey]struct{}
+
+func getFoundationKey(f []byte) foundationKey {
+	k := foundationKey{}
+	copy(k[:], f)
+	return k
+}
+
+func assertFoundationLength(f []byte) {
+	if len(f) > maxPairFoundationBytes {
+		panic("length of foundation is greater that maximum")
+	}
+}
+
+func (s foundationSet) Contains(f []byte) bool {
+	assertFoundationLength(f)
+	_, ok := s[getFoundationKey(f)]
+	return ok
+}
+
+func (s foundationSet) Add(f []byte) {
+	assertFoundationLength(f)
+	s[getFoundationKey(f)] = struct{}{}
+}
+
+type pairKey struct {
+	LocalIP    [net.IPv6len]byte
+	RemoteIP   [net.IPv6len]byte
+	LocalPort  int
+	RemotePort int
+}
+
+func (k pairKey) Equal(p *Pair) bool {
+	b := getPairKey(p)
+	return k == b
+}
+
+func getPairKey(p *Pair) pairKey {
+	k := pairKey{}
+	copy(k.LocalIP[:], p.Local.Addr.IP)
+	copy(k.RemoteIP[:], p.Remote.Addr.IP)
+	k.LocalPort = p.Local.Addr.Port
+	k.RemotePort = p.Remote.Addr.Port
+	return k
+}

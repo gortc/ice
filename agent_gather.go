@@ -1,12 +1,15 @@
 package ice
 
 import (
+	"io"
 	"net"
 	"strconv"
+	"sync"
+
+	"go.uber.org/zap"
 
 	"github.com/gortc/stun"
 	"github.com/gortc/turn"
-	"go.uber.org/zap"
 )
 
 func withGatherer(g candidateGatherer) AgentOption {
@@ -23,6 +26,51 @@ type gathererOptions struct {
 
 type candidateGatherer interface {
 	gatherUDP(opt gathererOptions) ([]*localUDPCandidate, error)
+}
+
+func (c *localUDPCandidate) Close() error {
+	return c.conn.Close()
+}
+
+func (c *localUDPCandidate) readUntilClose(a *Agent) {
+	for {
+		buf := make([]byte, 1024)
+		n, addr, err := c.conn.ReadFrom(buf)
+		if err != nil {
+			break
+		}
+		udpAddr, ok := addr.(*net.UDPAddr)
+		if !ok {
+			break
+		}
+		c.mux.Lock()
+		var pipe localPipe
+		for _, p := range c.pipes {
+			if !p.addr.IP.Equal(udpAddr.IP) {
+				continue
+			}
+			if p.addr.Port != udpAddr.Port {
+				continue
+			}
+			pipe = p
+		}
+		c.mux.Unlock()
+		if pipe.addr != nil {
+			_, err = pipe.conn.Write(buf[:n])
+			if err != nil && err != io.ErrClosedPipe {
+				c.log.Debug("pipe write failed", zap.Error(err))
+			} else {
+				continue
+			}
+		}
+		go func() {
+			if err := a.processUDP(buf[:n], c, udpAddr); err != nil {
+				c.log.Error("processUDP failed", zap.Error(err))
+			} else {
+				c.log.Debug("processed")
+			}
+		}()
+	}
 }
 
 // GatherCandidatesForStream allows gathering candidates for multiple streams.
@@ -194,4 +242,20 @@ func (a *Agent) gatherRelayedCandidatesFor(streamID int) error {
 		}
 	}
 	return nil
+}
+
+type localUDPCandidate struct {
+	log       *zap.Logger
+	candidate Candidate
+	conn      net.PacketConn
+	stream    int
+	alloc     *turn.Allocation
+
+	pipes []localPipe
+	mux   sync.Mutex
+}
+
+type localPipe struct {
+	addr *net.UDPAddr
+	conn net.Conn
 }
