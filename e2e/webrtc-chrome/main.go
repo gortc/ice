@@ -93,26 +93,33 @@ func newAnswer(o sdpAnswer) (string, error) {
 		SessionVersion: o.Offer.Origin.SessionVersion,
 	}
 	group := o.Offer.Medias[0].Attribute("mid")
-	var s sdp.Session
-	s = s.AddVersion(0).
-		AddOrigin(origin).
-		AddSessionName("-").
-		AddTiming(time.Time{}, time.Time{}).
-		AddAttribute("group", "bundle", group).
-		AddAttribute("msid-semantic", " WMS").
-		AddMediaDescription(sdp.MediaDescription{
+	m := &sdp.Message{
+		Origin: origin,
+		Name:   "-",
+		Timing: []sdp.Timing{
+			{
+				Start: time.Time{}, // 0
+				End:   time.Time{}, // 0
+			},
+		},
+	}
+	m.AddAttribute("group", "bundle "+group)
+	m.AddAttribute("msid-semantic", " WMS")
+	media := sdp.Media{
+		Description: sdp.MediaDescription{
 			Type:     "application",
 			Port:     firstCandidate.Addr.Port,
 			Protocol: "DTLS/SCTP",
 			Formats: []string{
 				"5000",
 			},
-		}).
-		AddConnectionData(sdp.ConnectionData{
+		},
+		Connection: sdp.ConnectionData{
 			NetworkType: "IN",
 			AddressType: "IP4",
 			IP:          firstCandidate.Addr.IP,
-		})
+		},
+	}
 	for _, c := range o.Candidates {
 		foundationInt := binary.BigEndian.Uint32(c.Foundation)
 		sdpCandidate := iceSDP.Candidate{
@@ -128,7 +135,7 @@ func newAnswer(o sdpAnswer) (string, error) {
 			Generation:  0,
 			NetworkCost: 999,
 		}
-		s = s.AddAttribute("candidate", sdpCandidate.String())
+		media.AddAttribute("candidate", sdpCandidate.String())
 	}
 	for _, a := range []struct {
 		k, v string
@@ -141,8 +148,10 @@ func newAnswer(o sdpAnswer) (string, error) {
 		{"mid", group},
 		{"sctpmap", "5000 webrtc-datachannel 1024"},
 	} {
-		s = s.AddAttribute(a.k, a.v)
+		media.AddAttribute(a.k, a.v)
 	}
+	m.Medias = append(m.Medias, media)
+	s := m.Append(nil)
 	buf := s.AppendTo(nil)
 	return string(buf), nil
 }
