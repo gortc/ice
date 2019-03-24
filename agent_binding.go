@@ -237,15 +237,17 @@ func (a *Agent) startBinding(p *Pair, m *stun.Message, priority int, t time.Time
 
 	a.tMux.Lock()
 	a.t[m.TransactionID] = &agentTransaction{
-		id:        m.TransactionID,
-		start:     t,
-		rto:       rto,
-		deadline:  t.Add(rto),
-		raw:       m.Raw,
-		checklist: checklist,
-		priority:  priority,
-		nominate:  p.Nominated,
-		pair:      getPairKey(p),
+		id:          m.TransactionID,
+		start:       t,
+		rto:         rto,
+		deadline:    t.Add(rto),
+		raw:         m.Raw,
+		checklist:   checklist,
+		priority:    priority,
+		nominate:    p.Nominated,
+		pair:        getPairKey(p),
+		attempt:     1,
+		maxAttempts: a.maxAttempts,
 	}
 	a.tMux.Unlock()
 	udpAddr := &net.UDPAddr{

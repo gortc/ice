@@ -73,14 +73,16 @@ type Server struct {
 }
 
 const defaultMaxChecks = 100
+const defaultMaxAttempts = 7
 
 // NewAgent initializes new ICE agent using provided options and returns error
 // if any.
 func NewAgent(opts ...AgentOption) (*Agent, error) {
 	a := &Agent{
-		gatherer:  systemCandidateGatherer{addr: gather.DefaultGatherer},
-		maxChecks: defaultMaxChecks,
-		ta:        defaultAgentTa,
+		gatherer:    systemCandidateGatherer{addr: gather.DefaultGatherer},
+		maxChecks:   defaultMaxChecks,
+		ta:          defaultAgentTa,
+		maxAttempts: defaultMaxAttempts,
 	}
 	for _, o := range opts {
 		if err := o(a); err != nil {
@@ -128,8 +130,9 @@ type Agent struct {
 	remoteUsername string
 	remotePassword string
 
-	maxChecks int
-	ta        time.Duration // section 15.2, Ta
+	maxChecks   int
+	maxAttempts int
+	ta          time.Duration // section 15.2, Ta
 
 	turn []turnServerOptions
 	stun []stunServerOptions

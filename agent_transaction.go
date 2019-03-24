@@ -30,8 +30,8 @@ type agentTransaction struct {
 	rto         time.Duration
 	deadline    time.Time
 	raw         []byte
-	attempt     int32
-	maxAttempts int32
+	attempt     int
+	maxAttempts int
 }
 
 func (t *agentTransaction) nextDeadline(now time.Time) time.Time {
