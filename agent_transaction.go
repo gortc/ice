@@ -34,8 +34,8 @@ type agentTransaction struct {
 	maxAttempts int
 }
 
-func (t *agentTransaction) nextDeadline(now time.Time) time.Time {
-	return now.Add(time.Duration(t.attempt+1) * t.rto)
+func (t *agentTransaction) setDeadline(now time.Time) {
+	t.deadline = now.Add(time.Duration(t.attempt) * t.rto)
 }
 
 // handleTimeout handles maximum attempts reached state for transaction,
@@ -96,7 +96,7 @@ func (a *Agent) collect(now time.Time) {
 
 	a.tMux.Lock()
 	for id, t := range a.t {
-		if t.deadline.Before(now) {
+		if !t.deadline.After(now) {
 			toDelete = append(toDelete, id)
 			toHandle = append(toHandle, t)
 		}
@@ -114,7 +114,7 @@ func (a *Agent) collect(now time.Time) {
 	for _, t := range toHandle {
 		if t.attempt < t.maxAttempts {
 			t.attempt++
-			t.deadline = t.nextDeadline(now)
+			t.setDeadline(now)
 			toRetry = append(toRetry, t)
 			continue
 		}

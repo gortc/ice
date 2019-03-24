@@ -230,17 +230,14 @@ func (a *Agent) startBinding(p *Pair, m *stun.Message, priority int, t time.Time
 	if !ok {
 		return errCandidateNotFound
 	}
-	rto := a.rto()
 	a.mux.Lock()
 	checklist := a.checklist
 	a.mux.Unlock()
 
-	a.tMux.Lock()
-	a.t[m.TransactionID] = &agentTransaction{
+	at := &agentTransaction{
 		id:          m.TransactionID,
 		start:       t,
-		rto:         rto,
-		deadline:    t.Add(rto),
+		rto:         a.rto(),
 		raw:         m.Raw,
 		checklist:   checklist,
 		priority:    priority,
@@ -249,7 +246,12 @@ func (a *Agent) startBinding(p *Pair, m *stun.Message, priority int, t time.Time
 		attempt:     1,
 		maxAttempts: a.maxAttempts,
 	}
+	at.setDeadline(t)
+
+	a.tMux.Lock()
+	a.t[m.TransactionID] = at
 	a.tMux.Unlock()
+
 	udpAddr := &net.UDPAddr{
 		IP:   p.Remote.Addr.IP,
 		Port: p.Remote.Addr.Port,
