@@ -106,6 +106,10 @@ func (a *Agent) collect(now time.Time) {
 	}
 	a.tMux.Unlock()
 
+	if len(toHandle) == 0 {
+		return
+	}
+
 	toRetry := make([]*agentTransaction, 0, defaultTransactionCap)
 	for _, t := range toHandle {
 		if t.attempt < t.maxAttempts {
