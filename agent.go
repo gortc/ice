@@ -14,10 +14,11 @@ import (
 
 	"go.uber.org/zap"
 
-	ct "github.com/gortc/ice/candidate"
-	"github.com/gortc/ice/gather"
 	"github.com/gortc/stun"
 	"github.com/gortc/turn"
+
+	ct "github.com/gortc/ice/candidate"
+	"github.com/gortc/ice/gather"
 )
 
 // Role represents ICE agent role, which can be controlling or controlled.
@@ -62,34 +63,6 @@ const (
 type ChecklistSet []Checklist
 
 const noChecklist = -1
-
-type transactionID [stun.TransactionIDSize]byte
-
-func (t transactionID) AddTo(m *stun.Message) error {
-	m.TransactionID = t
-	return nil
-}
-
-// agentTransaction represents transaction in progress.
-//
-// Concurrent access is invalid.
-type agentTransaction struct {
-	checklist int
-	pair      pairKey
-	priority  int
-	nominate  bool
-	id        transactionID
-	start     time.Time
-	rto       time.Duration
-	deadline  time.Time
-	raw       []byte
-	// attempt int32
-	// calls   int32
-	// start   time.Time
-	// rto     time.Duration
-	// raw     []byte
-	// ...
-}
 
 // Server represents ICE server (TURN or STUN) which will be used for
 // connectivity establishment.
@@ -230,6 +203,7 @@ func (a *Agent) Conclude(ctx context.Context) error {
 	for {
 		select {
 		case t := <-ticker.C:
+			a.collect(t)
 			if err := a.tick(t, make(map[int]bool)); err != nil {
 				return err
 			}
