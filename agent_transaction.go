@@ -38,8 +38,8 @@ func (t *agentTransaction) nextDeadline(now time.Time) time.Time {
 	return now.Add(time.Duration(t.attempt+1) * t.rto)
 }
 
-const defaultTransactionCap = 30
-
+// handleTimeout handles maximum attempts reached state for transaction,
+// updating the pair states to failed.
 func (a *Agent) handleTimeout(t *agentTransaction) error {
 	a.mux.Lock()
 	p, ok := a.getPair(t.checklist, t.pair)
@@ -62,6 +62,7 @@ func (a *Agent) handleTimeout(t *agentTransaction) error {
 	return nil
 }
 
+// retry re-sends same binding request to associated candidate.
 func (a *Agent) retry(t *agentTransaction) {
 	a.mux.Lock()
 	p, ok := a.getPair(t.checklist, t.pair)
@@ -85,6 +86,10 @@ func (a *Agent) retry(t *agentTransaction) {
 	}
 }
 
+const defaultTransactionCap = 30
+
+// collect handles transaction timeouts, performing retry or updating the
+// pair state if max attempts reached.
 func (a *Agent) collect(now time.Time) {
 	toHandle := make([]*agentTransaction, 0, defaultTransactionCap)
 	toDelete := make([]transactionID, 0, defaultTransactionCap)
