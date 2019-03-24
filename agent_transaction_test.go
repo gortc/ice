@@ -37,4 +37,33 @@ func TestAgent_Timeout(t *testing.T) {
 			t.Error("transaction should be removed")
 		}
 	})
+	t.Run("Retry", func(t *testing.T) {
+		a, err := NewAgent()
+		if err != nil {
+			t.Fatal(err)
+		}
+		a.checklist = 0
+		a.set = ChecklistSet{
+			{
+				Pairs: Pairs{
+					{},
+				},
+			},
+		}
+		now := time.Now()
+		at := &agentTransaction{
+			id:          stun.NewTransactionID(),
+			rto:         time.Millisecond * 100,
+			start:       now,
+			attempt:     2,
+			maxAttempts: 3,
+			pair:        getPairKey(&a.set[0].Pairs[0]),
+		}
+		a.t[at.id] = at
+		a.collect(at.deadline)
+		_, ok := a.t[at.id]
+		if !ok {
+			t.Error("transaction should be kept")
+		}
+	})
 }
