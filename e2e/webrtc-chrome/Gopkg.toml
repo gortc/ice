@@ -24,7 +24,7 @@
 #   go-tests = true
 #   unused-packages = true
 
-ignored = ["github.com/gortc/ice", "go.uber.org/zap"]
+ignored = ["github.com/gortc/ice", "go.uber.org/zap", "github.com/gortc/ice/sdp", "github.com/gortc/ice/candidate"]
 
 [prune]
   go-tests = true

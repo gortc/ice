@@ -79,17 +79,6 @@
   version = "v1.2.0"
 
 [[projects]]
-  digest = "1:edf140c1cdda3f4ed3e29ea3dd024c3936c9953b32367249828871ce522b4e23"
-  name = "github.com/gortc/ice"
-  packages = [
-    "candidate",
-    "sdp",
-  ]
-  pruneopts = "UT"
-  revision = "0502d448b37789b0bed1d54ccd0adefaa9cefca0"
-  version = "v0.6.3"
-
-[[projects]]
   digest = "1:a9058c0e370512364338675fcf9e12e73b5c598ed4df92a4d0f3ec509b3b92ef"
   name = "github.com/gortc/sdp"
   packages = ["."]
@@ -161,8 +150,6 @@
     "github.com/chromedp/chromedp",
     "github.com/chromedp/chromedp/runner",
     "github.com/gorilla/websocket",
-    "github.com/gortc/ice/candidate",
-    "github.com/gortc/ice/sdp",
     "github.com/gortc/sdp",
     "github.com/pkg/errors",
     "golang.org/x/net/websocket",
