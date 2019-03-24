@@ -192,7 +192,7 @@ func (c ConnectionData) getNetworkType() string {
 // getAddressType returns Address Type ("addrtype") for ip,
 // using addressType as default value if present.
 func getAddressType(addr, addressType string) string {
-	if len(addressType) != 0 {
+	if addressType != "" {
 		return addressType
 	}
 	for _, s := range addr {
@@ -209,7 +209,7 @@ func getAddressType(addr, addressType string) string {
 // getAddressType returns Address Type ("addrtype") for ip,
 // using addressType as default value if present.
 func getAddressTypeIP(ip net.IP, addressType string) string {
-	if len(addressType) != 0 {
+	if addressType != "" {
 		return addressType
 	}
 	if ip == nil {
@@ -271,16 +271,16 @@ type Origin struct {
 	Address        string // <unicast-address>
 }
 
-func (o Origin) getNetworkType() string {
+func (o *Origin) getNetworkType() string {
 	return getDefault(o.NetworkType, networkTypeInternet)
 }
 
-func (o Origin) getAddressType() string {
+func (o *Origin) getAddressType() string {
 	return getAddressType(o.Address, o.AddressType)
 }
 
 // Equal returns b == o.
-func (o Origin) Equal(b Origin) bool {
+func (o *Origin) Equal(b Origin) bool {
 	if o.Username != b.Username {
 		return false
 	}
@@ -466,7 +466,32 @@ type MediaDescription struct {
 	Port        int
 	PortsNumber int
 	Protocol    string
-	Format      string
+	Formats     []string
+}
+
+// Equal returns true if b equals to m.
+func (m MediaDescription) Equal(b MediaDescription) bool {
+	if m.Type != b.Type {
+		return false
+	}
+	if m.Port != b.Port {
+		return false
+	}
+	if m.PortsNumber != b.PortsNumber {
+		return false
+	}
+	if m.Protocol != b.Protocol {
+		return false
+	}
+	if len(m.Formats) != len(b.Formats) {
+		return false
+	}
+	for i := range m.Formats {
+		if m.Formats[i] != b.Formats[i] {
+			return false
+		}
+	}
+	return true
 }
 
 // AddMediaDescription appends Media Description field to Session.
@@ -480,7 +505,12 @@ func (s Session) AddMediaDescription(m MediaDescription) Session {
 	}
 	v = appendSpace(v)
 	v = appendSpace(append(v, m.Protocol...))
-	v = append(v, m.Format...)
+	for i := range m.Formats {
+		v = append(v, m.Formats[i]...)
+		if i != len(m.Formats)-1 {
+			v = appendRune(v, fieldsDelimiter)
+		}
+	}
 	return s.append(TypeMediaDescription, v)
 }
 
@@ -492,7 +522,7 @@ func (s Session) AddEncryption(e Encryption) Session {
 // AddEncryptionKey appends Encryption Key field with method and key in
 // "k=<method>:<encryption key>" format to Session.
 func (s Session) AddEncryptionKey(method, key string) Session {
-	if len(key) == 0 {
+	if key == "" {
 		return s.AddEncryptionMethod(method)
 	}
 	v := make([]byte, 0, 512)
@@ -537,7 +567,7 @@ func (s Session) AddTimeZones(zones ...TimeZone) Session {
 }
 
 func getDefault(v, d string) string {
-	if len(v) == 0 {
+	if v == "" {
 		return d
 	}
 	return v
