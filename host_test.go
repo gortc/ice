@@ -4,7 +4,7 @@ import (
 	"net"
 	"testing"
 
-	"github.com/gortc/ice/gather"
+	"gortc.io/ice/gather"
 )
 
 func TestProcessDualStack(t *testing.T) {

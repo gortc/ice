@@ -6,7 +6,7 @@ import (
 	"net"
 	"sort"
 
-	"github.com/gortc/ice/internal"
+	"gortc.io/ice/internal"
 )
 
 const precedencesCount = 11

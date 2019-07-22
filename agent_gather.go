@@ -8,8 +8,9 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/gortc/stun"
-	"github.com/gortc/turn"
+	"gortc.io/stun"
+	"gortc.io/turn"
+	"gortc.io/turnc"
 )
 
 func withGatherer(g candidateGatherer) AgentOption {
@@ -222,7 +223,7 @@ func (a *Agent) gatherRelayedCandidatesFor(streamID int) error {
 				}
 			}()
 			// TODO: Setup correct RTO.
-			client, err := turn.NewClient(turn.ClientOptions{
+			client, err := turnc.New(turnc.Options{
 				Conn:     lconn,
 				Username: s.username,
 				Password: s.password,
@@ -249,7 +250,7 @@ type localUDPCandidate struct {
 	candidate Candidate
 	conn      net.PacketConn
 	stream    int
-	alloc     *turn.Allocation
+	alloc     *turnc.Allocation
 
 	pipes []localPipe
 	mux   sync.Mutex

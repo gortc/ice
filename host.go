@@ -3,8 +3,8 @@ package ice
 import (
 	"net"
 
-	"github.com/gortc/ice/gather"
-	"github.com/gortc/ice/internal"
+	"gortc.io/ice/gather"
+	"gortc.io/ice/internal"
 )
 
 // See Deprecating Site Local Addresses [RFC3879]

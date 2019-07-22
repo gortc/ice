@@ -3,7 +3,7 @@ package ice
 import (
 	"testing"
 
-	"github.com/gortc/stun"
+	"gortc.io/stun"
 )
 
 func TestUseCandidateAttr_AddTo(t *testing.T) {

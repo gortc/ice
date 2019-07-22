@@ -6,7 +6,7 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/gortc/ice/candidate"
+	"gortc.io/ice/candidate"
 )
 
 var localIP = net.IPv4(127, 0, 0, 1)

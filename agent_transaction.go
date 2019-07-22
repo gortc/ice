@@ -7,7 +7,7 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/gortc/stun"
+	"gortc.io/stun"
 )
 
 type transactionID [stun.TransactionIDSize]byte

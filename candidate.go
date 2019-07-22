@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"net"
 
-	ct "github.com/gortc/ice/candidate"
+	ct "gortc.io/ice/candidate"
 )
 
 // Addr represents transport address, the combination of an IP address

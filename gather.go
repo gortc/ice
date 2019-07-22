@@ -3,8 +3,8 @@ package ice
 import (
 	"net"
 
-	ct "github.com/gortc/ice/candidate"
-	"github.com/gortc/ice/gather"
+	ct "gortc.io/ice/candidate"
+	"gortc.io/ice/gather"
 )
 
 // Gather via DefaultGatherer.

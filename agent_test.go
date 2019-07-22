@@ -10,9 +10,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gortc/ice/candidate"
-	"github.com/gortc/ice/gather"
-	"github.com/gortc/stun"
+	"gortc.io/ice/candidate"
+	"gortc.io/ice/gather"
+	"gortc.io/stun"
 
 	"go.uber.org/zap"
 )

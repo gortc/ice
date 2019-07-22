@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gortc/stun"
+	"gortc.io/stun"
 )
 
 func TestAgent_Timeout(t *testing.T) {

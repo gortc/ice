@@ -1,6 +1,6 @@
 package ice
 
-import "github.com/gortc/stun"
+import "gortc.io/stun"
 
 // UseCandidateAttr represents USE-CANDIDATE attribute.
 type UseCandidateAttr struct{}

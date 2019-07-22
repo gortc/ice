@@ -1,6 +1,6 @@
 package ice
 
-import "github.com/gortc/stun"
+import "gortc.io/stun"
 
 // tiebreaker is common helper for ICE-{CONTROLLED,CONTROLLING}
 // and represents the so-called tiebreaker number.

@@ -9,8 +9,8 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/gortc/ice/candidate"
-	"github.com/gortc/stun"
+	"gortc.io/ice/candidate"
+	"gortc.io/stun"
 )
 
 func (a *Agent) handleBindingRequest(m *stun.Message, c *localUDPCandidate, raddr Addr) error {

@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/gortc/ice/candidate"
+	"gortc.io/ice/candidate"
 )
 
 func TestChecklistJSON(t *testing.T) {

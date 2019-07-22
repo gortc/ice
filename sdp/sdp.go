@@ -13,7 +13,7 @@ import (
 	"strings"
 	"unsafe"
 
-	ct "github.com/gortc/ice/candidate"
+	ct "gortc.io/ice/candidate"
 )
 
 // AddressType is type for Address.

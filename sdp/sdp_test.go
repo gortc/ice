@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/gortc/ice/candidate"
-	"github.com/gortc/sdp"
+	"gortc.io/ice/candidate"
+	"gortc.io/sdp"
 )
 
 func TestAttributes_Value(t *testing.T) {

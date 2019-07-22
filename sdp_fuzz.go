@@ -2,7 +2,7 @@
 
 package ice
 
-import "github.com/gortc/ice/sdp"
+import "gortc.io/ice/sdp"
 
 var c = new(sdp.Candidate)
 

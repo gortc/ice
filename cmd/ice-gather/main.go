@@ -7,8 +7,8 @@ import (
 	"log"
 	"net"
 
-	"github.com/gortc/ice"
-	"github.com/gortc/ice/candidate"
+	"gortc.io/ice"
+	"gortc.io/ice/candidate"
 )
 
 func main() {

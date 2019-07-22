@@ -5,8 +5,8 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/gortc/stun"
-	"github.com/gortc/turn"
+	"gortc.io/stun"
+	"gortc.io/turn"
 )
 
 // AgentOption represents configuration option for Agent.

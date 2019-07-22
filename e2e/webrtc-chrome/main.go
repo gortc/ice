@@ -15,14 +15,14 @@ import (
 
 	"github.com/chromedp/chromedp"
 	"github.com/chromedp/chromedp/runner"
-	"github.com/gortc/sdp"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"golang.org/x/net/websocket"
 
-	"github.com/gortc/ice"
-	"github.com/gortc/ice/candidate"
-	iceSDP "github.com/gortc/ice/sdp"
+	"gortc.io/ice"
+	"gortc.io/ice/candidate"
+	iceSDP "gortc.io/ice/sdp"
+	"gortc.io/sdp"
 )
 
 var (
