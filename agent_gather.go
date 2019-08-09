@@ -136,29 +136,9 @@ func (a *Agent) gatherServerReflexiveCandidatesFor(streamID int) error {
 			if err != nil {
 				return err
 			}
-			lconn, rconn := net.Pipe()
-			c.mux.Lock()
-			c.pipes = append(c.pipes, localPipe{
-				addr: addr,
-				conn: rconn,
-			})
-			c.mux.Unlock()
-			go func() {
-				for {
-					buf := make([]byte, 1024)
-					n, readErr := rconn.Read(buf)
-					if readErr != nil {
-						break
-					}
-					_, writeErr := c.conn.WriteTo(buf[:n], addr)
-					if writeErr != nil {
-						a.log.Debug("WriteTo failed", zap.Error(writeErr))
-						_ = rconn.Close()
-					}
-				}
-			}()
+			conn := c.Pipe(addr)
 			// TODO: Setup correct RTO.
-			client, err := stun.NewClient(lconn, stun.WithRTO(a.ta/2))
+			client, err := stun.NewClient(conn, stun.WithRTO(a.ta/2))
 			if err != nil {
 				return err
 			}
@@ -187,6 +167,37 @@ func (a *Agent) gatherServerReflexiveCandidatesFor(streamID int) error {
 	return nil
 }
 
+func (a *Agent) gatherRelayedCandidates(c *localUDPCandidate, s turnServerOptions) error {
+	a.log.Debug("gathering relayed candidates",
+		zap.Stringer("uri", s.uri), zap.Stringer("addr", c.candidate.Addr),
+	)
+	addr, err := resolveTURN(s.uri)
+	if err != nil {
+		return err
+	}
+	conn := c.Pipe(addr)
+	client, err := turnc.New(turnc.Options{
+		Conn:     conn,
+		Username: s.username,
+		Password: s.password,
+		Log:      a.log.Named("turn").With(zap.Stringer("local", c.candidate.Addr)),
+		RTO:      a.ta / 2, // TODO: setup correct RTO
+	})
+	if err != nil {
+		return err
+	}
+	alloc, err := client.Allocate()
+	if err != nil {
+		a.log.Warn("failed to allocate", zap.Error(err))
+		return nil
+	}
+	c.mux.Lock()
+	c.alloc = alloc
+	c.mux.Unlock()
+	a.log.Debug("turn allocated")
+	return nil
+}
+
 func (a *Agent) gatherRelayedCandidatesFor(streamID int) error {
 	localCandidates := a.localCandidates[streamID]
 	for _, c := range localCandidates {
@@ -194,52 +205,12 @@ func (a *Agent) gatherRelayedCandidatesFor(streamID int) error {
 			continue
 		}
 		for _, s := range a.turn {
-			a.log.Debug("trying TURN",
-				zap.Stringer("uri", s.uri), zap.Stringer("addr", c.candidate.Addr),
-			)
-			addr, err := resolveTURN(s.uri)
-			if err != nil {
-				return err
+			if err := a.gatherRelayedCandidates(c, s); err != nil {
+				a.log.Error("failed to gather relayed candidates",
+					zap.Stringer("local", c.candidate.Addr),
+					zap.Stringer("turn", s.uri),
+				)
 			}
-			lconn, rconn := net.Pipe()
-			c.mux.Lock()
-			c.pipes = append(c.pipes, localPipe{
-				addr: addr,
-				conn: rconn,
-			})
-			c.mux.Unlock()
-			go func() {
-				for {
-					buf := make([]byte, 1024)
-					n, readErr := rconn.Read(buf)
-					if readErr != nil {
-						break
-					}
-					_, writeErr := c.conn.WriteTo(buf[:n], addr)
-					if writeErr != nil {
-						a.log.Debug("WriteTo failed", zap.Error(writeErr))
-						_ = rconn.Close()
-					}
-				}
-			}()
-			// TODO: Setup correct RTO.
-			client, err := turnc.New(turnc.Options{
-				Conn:     lconn,
-				Username: s.username,
-				Password: s.password,
-				Log:      a.log.Named("turn").With(zap.Stringer("local", c.candidate.Addr)),
-				RTO:      a.ta / 2,
-			})
-			if err != nil {
-				return err
-			}
-			alloc, err := client.Allocate()
-			if err != nil {
-				a.log.Warn("failed to allocate", zap.Error(err))
-				continue
-			}
-			c.alloc = alloc
-			a.log.Debug("turn allocated")
 		}
 	}
 	return nil
@@ -254,6 +225,32 @@ type localUDPCandidate struct {
 
 	pipes []localPipe
 	mux   sync.Mutex
+}
+
+// Pipe returns a connection to addr from local candidate.
+func (c *localUDPCandidate) Pipe(addr *net.UDPAddr) net.Conn {
+	lconn, rconn := net.Pipe()
+	c.mux.Lock()
+	c.pipes = append(c.pipes, localPipe{
+		addr: addr,
+		conn: rconn,
+	})
+	c.mux.Unlock()
+	go func() {
+		for {
+			buf := make([]byte, 1024)
+			n, readErr := rconn.Read(buf)
+			if readErr != nil {
+				break
+			}
+			_, writeErr := c.conn.WriteTo(buf[:n], addr)
+			if writeErr != nil {
+				c.log.Debug("WriteTo failed", zap.Error(writeErr))
+				_ = rconn.Close()
+			}
+		}
+	}()
+	return lconn
 }
 
 type localPipe struct {
