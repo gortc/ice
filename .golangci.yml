@@ -25,6 +25,7 @@ linters-settings:
       - experimental
     disabled-checks:
       - sloppyReassign
+      - hugeParam
 
 issues:
   exclude-use-default: false
