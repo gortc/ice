@@ -34,12 +34,13 @@ issues:
     - "should have a package comment, unless it's in another file for this package"
   exclude-rules:
     - text: "string `(Unknown|<nil>|UDP)`"
-      linters:
-        - goconst
+      linters: [goconst]
 
     - text: \(\*candidateParser\)
-      linters:
-        - gocyclo
+      linters: [gocyclo]
+
+    - linters: [dupl]
+      source: "gather\\S+CandidatesFor"
 
     # Exclude some linters from running on tests files.
     - path: _test\.go
@@ -54,16 +55,13 @@ issues:
     # Ease some gocritic warnings on test files.
     - path: _test\.go
       text: "(unnamedResult|exitAfterDefer|unlambda)"
-      linters:
-        - gocritic
+      linters: [gocritic]
 
     - path: ^cmd/
-      linters:
-        - gocyclo
+      linters: [gocyclo]
     - path: ^cmd/
       text: "(unnamedResult|exitAfterDefer)"
-      linters:
-        - gocritic
+      linters: [gocritic]
 
 linters:
   enable-all: true

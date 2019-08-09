@@ -122,6 +122,39 @@ func resolveTURN(uri turn.URI) (*net.UDPAddr, error) {
 	return addr, err
 }
 
+func (a *Agent) gatherServerReflexiveCandidates(log *zap.Logger, c *localUDPCandidate, s stunServerOptions) error {
+	addr, err := resolveSTUN(s.uri)
+	if err != nil {
+		return err
+	}
+	// TODO: Setup correct RTO.
+	client, err := stun.NewClient(c.Pipe(addr), stun.WithRTO(a.ta/2))
+	if err != nil {
+		return err
+	}
+	var bindErr error
+	if doErr := client.Do(stun.MustBuild(stun.TransactionID, stun.BindingRequest, stun.Fingerprint), func(event stun.Event) {
+		if event.Error != nil {
+			bindErr = event.Error
+			return
+		}
+		var mappedAddr stun.XORMappedAddress
+		if getErr := mappedAddr.GetFrom(event.Message); getErr != nil {
+			bindErr = getErr
+		}
+		log.Debug("got server reflexive candidate", zap.Stringer("addr", mappedAddr))
+	}); doErr != nil {
+		return doErr
+	}
+	if err = client.Close(); err != nil {
+		return err
+	}
+	if bindErr != nil {
+		log.Debug("binding error", zap.Error(bindErr))
+	}
+	return nil
+}
+
 func (a *Agent) gatherServerReflexiveCandidatesFor(streamID int) error {
 	localCandidates := a.localCandidates[streamID]
 	for _, c := range localCandidates {
@@ -129,55 +162,26 @@ func (a *Agent) gatherServerReflexiveCandidatesFor(streamID int) error {
 			continue
 		}
 		for _, s := range a.stun {
-			a.log.Debug("trying STUN",
-				zap.Stringer("uri", s.uri), zap.Stringer("addr", c.candidate.Addr),
+			log := a.log.With(
+				zap.Stringer("uri", s.uri),
+				zap.Stringer("addr", c.candidate.Addr),
 			)
-			addr, err := resolveSTUN(s.uri)
-			if err != nil {
-				return err
-			}
-			conn := c.Pipe(addr)
-			// TODO: Setup correct RTO.
-			client, err := stun.NewClient(conn, stun.WithRTO(a.ta/2))
-			if err != nil {
-				return err
-			}
-			var bindErr error
-			if doErr := client.Do(stun.MustBuild(stun.TransactionID, stun.BindingRequest, stun.Fingerprint), func(event stun.Event) {
-				if event.Error != nil {
-					bindErr = event.Error
-					return
-				}
-				var mappedAddr stun.XORMappedAddress
-				if getErr := mappedAddr.GetFrom(event.Message); getErr != nil {
-					bindErr = getErr
-				}
-				a.log.Debug("got server reflexive candidate", zap.Stringer("addr", mappedAddr))
-			}); doErr != nil {
-				return doErr
-			}
-			if err = client.Close(); err != nil {
-				return err
-			}
-			if bindErr != nil {
-				a.log.Debug("binding error", zap.Error(bindErr))
+			log.Debug("gathering server-reflexive candidates")
+			if err := a.gatherServerReflexiveCandidates(log, c, s); err != nil {
+				log.Error("failed to gather server reflexive candidates")
 			}
 		}
 	}
 	return nil
 }
 
-func (a *Agent) gatherRelayedCandidates(c *localUDPCandidate, s turnServerOptions) error {
-	a.log.Debug("gathering relayed candidates",
-		zap.Stringer("uri", s.uri), zap.Stringer("addr", c.candidate.Addr),
-	)
+func (a *Agent) gatherRelayedCandidates(log *zap.Logger, c *localUDPCandidate, s turnServerOptions) error {
 	addr, err := resolveTURN(s.uri)
 	if err != nil {
 		return err
 	}
-	conn := c.Pipe(addr)
 	client, err := turnc.New(turnc.Options{
-		Conn:     conn,
+		Conn:     c.Pipe(addr),
 		Username: s.username,
 		Password: s.password,
 		Log:      a.log.Named("turn").With(zap.Stringer("local", c.candidate.Addr)),
@@ -188,13 +192,13 @@ func (a *Agent) gatherRelayedCandidates(c *localUDPCandidate, s turnServerOption
 	}
 	alloc, err := client.Allocate()
 	if err != nil {
-		a.log.Warn("failed to allocate", zap.Error(err))
+		log.Warn("failed to allocate", zap.Error(err))
 		return nil
 	}
 	c.mux.Lock()
 	c.alloc = alloc
 	c.mux.Unlock()
-	a.log.Debug("turn allocated")
+	log.Debug("turn allocated")
 	return nil
 }
 
@@ -205,11 +209,13 @@ func (a *Agent) gatherRelayedCandidatesFor(streamID int) error {
 			continue
 		}
 		for _, s := range a.turn {
-			if err := a.gatherRelayedCandidates(c, s); err != nil {
-				a.log.Error("failed to gather relayed candidates",
-					zap.Stringer("local", c.candidate.Addr),
-					zap.Stringer("turn", s.uri),
-				)
+			log := a.log.With(
+				zap.Stringer("uri", s.uri),
+				zap.Stringer("addr", c.candidate.Addr),
+			)
+			log.Debug("gathering relayed candidates")
+			if err := a.gatherRelayedCandidates(log, c, s); err != nil {
+				log.Error("failed to gather relayed candidates")
 			}
 		}
 	}
