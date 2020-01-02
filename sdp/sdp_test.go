@@ -257,7 +257,6 @@ func TestCandidate_Equal(t *testing.T) {
 				t.Error("equality test failed")
 			}
 		})
-
 	}
 }
 
@@ -510,7 +509,6 @@ func TestParseAttribute(t *testing.T) {
 			)
 		}
 	}
-
 }
 
 func TestAddressType_String(t *testing.T) {
@@ -579,7 +577,6 @@ func TestConnectionAddress_Equal(t *testing.T) {
 				t.Error("equality test failed")
 			}
 		})
-
 	}
 }
 

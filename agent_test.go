@@ -540,9 +540,12 @@ func TestAgent_nextChecklist(t *testing.T) {
 	} {
 		t.Run(tc.Name, func(t *testing.T) {
 			a := &Agent{set: tc.Set, checklist: tc.Current}
-			_, id := a.nextChecklist()
+			c, id := a.nextChecklist()
 			if id != tc.ID {
 				t.Errorf("nextChecklist %d (got) != %d (expected)", id, tc.ID)
+			}
+			if c.State != ChecklistRunning {
+				t.Error("bad state")
 			}
 		})
 	}
@@ -793,7 +796,6 @@ func TestAgent_updateState(t *testing.T) {
 			}
 		})
 	}
-
 }
 
 func TestAgent_init(t *testing.T) {

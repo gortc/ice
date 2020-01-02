@@ -414,11 +414,11 @@ func (p *candidateParser) parseAttribute(a Attribute) error {
 
 type parseFn func(v []byte) error
 
-const (
-	minBufLen = 10
-)
+const minBufLen = 10
 
 // parse populates internal Candidate from buffer.
+//
+//nolint:gocognit,funlen // TODO: simplify
 func (p *candidateParser) parse() error {
 	if len(p.buf) < minBufLen {
 		return fmt.Errorf("buffer too small (%d < %d)", len(p.buf), minBufLen)
