@@ -1,7 +1,9 @@
 package ice
 
 import (
+	"errors"
 	"strings"
+	"time"
 
 	"go.uber.org/zap"
 
@@ -98,4 +100,23 @@ func WithTURN(uri, username, credential string) AgentOption {
 var WithIPv4Only AgentOption = func(a *Agent) error {
 	a.ipv4Only = true
 	return nil
+}
+
+// WithTa sets Ta timer value which is technically time between candidates.
+func WithTa(ta time.Duration) AgentOption {
+	return func(a *Agent) error {
+		if ta < 0 {
+			return errors.New("ta should be positive")
+		}
+		a.ta = ta
+		return nil
+	}
+}
+
+// WithMaxAttempts sets maximum attempts.
+func WithMaxAttempts(n int) AgentOption {
+	return func(a *Agent) error {
+		a.maxAttempts = n
+		return nil
+	}
 }
