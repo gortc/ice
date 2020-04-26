@@ -6,6 +6,7 @@ import (
 	"io"
 	"math/rand"
 	"net"
+	"os"
 	"sort"
 	"testing"
 	"time"
@@ -1351,10 +1352,16 @@ func TestAgent_Conclude(t *testing.T) {
 			WithMaxAttempts(1),
 			WithTa(time.Millisecond),
 		}
-		a, err := NewAgent(append(options, WithLogger(log.Named("L")),
-			WithSTUN("stun:stun.l.google.com:19302"),
-			WithTURN("turn:turn.gortc.io:3478", "user", "secret"),
-		)...)
+		aOptions := append(options, WithLogger(log.Named("L")))
+		if os.Getenv("GORTC_TEST_EXTERNAL") == "1" {
+			// TODO(ernado): make test fully local
+			log.Debug("Using external STUN and TURN services")
+			aOptions = append(aOptions,
+				WithSTUN("stun:stun.l.google.com:19302"),
+				WithTURN("turn:turn.gortc.io:3478", "user", "secret"),
+			)
+		}
+		a, err := NewAgent(aOptions...)
 		if err != nil {
 			t.Fatal(err)
 		}
