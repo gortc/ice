@@ -79,6 +79,7 @@ linters:
     - gomnd
     - wsl
     - godox
+    - testpackage
 
 run:
   skip-dirs:
