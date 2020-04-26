@@ -1347,22 +1347,32 @@ func TestAgent_Conclude(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		a, err := NewAgent(WithLogger(log.Named("L")),
+		var options = []AgentOption{
+			WithMaxAttempts(1),
+			WithTa(time.Millisecond),
+		}
+		a, err := NewAgent(append(options, WithLogger(log.Named("L")),
 			WithSTUN("stun:stun.l.google.com:19302"),
 			WithTURN("turn:turn.gortc.io:3478", "user", "secret"),
-		)
+		)...)
 		if err != nil {
 			t.Fatal(err)
 		}
 		defer mustClose(t, a)
+
+		log.Debug("Gathering candidates for A")
 		if err = a.GatherCandidates(); err != nil {
 			t.Fatalf("failed to gather candidates: %v", err)
 		}
-		b, err := NewAgent(WithRole(Controlled), WithLogger(log.Named("R")))
+
+		b, err := NewAgent(append(options, WithRole(Controlled),
+			WithLogger(log.Named("R")),
+		)...)
 		if err != nil {
 			t.Fatal(err)
 		}
 		defer mustClose(t, b)
+		log.Debug("Gathering candidates for B")
 		if err = b.GatherCandidates(); err != nil {
 			t.Errorf("failed to gather candidates: %v", err)
 		}
@@ -1388,6 +1398,7 @@ func TestAgent_Conclude(t *testing.T) {
 		if err = b.PrepareChecklistSet(); err != nil {
 			t.Fatal(err)
 		}
+		log.Debug("Starting pairs")
 		t.Logf("got pairs: %d", len(a.set[0].Pairs))
 		for _, p := range a.set[0].Pairs {
 			if p.Local.Addr.Equal(p.Remote.Addr) {
