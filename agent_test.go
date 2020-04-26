@@ -1344,6 +1344,9 @@ func TestAgent_Conclude(t *testing.T) {
 		<-done
 	})
 	t.Run("System", func(t *testing.T) {
+		if os.Getenv("GORTC_TEST_EXTERNAL") != "1" {
+			t.Skip("Skipped (`GORTC_TEST_EXTERNAL` not set to 1)")
+		}
 		log, err := zap.NewDevelopment()
 		if err != nil {
 			t.Fatal(err)
@@ -1352,16 +1355,10 @@ func TestAgent_Conclude(t *testing.T) {
 			WithMaxAttempts(1),
 			WithTa(time.Millisecond),
 		}
-		aOptions := append(options, WithLogger(log.Named("L")))
-		if os.Getenv("GORTC_TEST_EXTERNAL") == "1" {
-			// TODO(ernado): make test fully local
-			log.Debug("Using external STUN and TURN services")
-			aOptions = append(aOptions,
-				WithSTUN("stun:stun.l.google.com:19302"),
-				WithTURN("turn:turn.gortc.io:3478", "user", "secret"),
-			)
-		}
-		a, err := NewAgent(aOptions...)
+		a, err := NewAgent(append(options, WithLogger(log.Named("L")),
+			WithSTUN("stun:stun.l.google.com:19302"),
+			WithTURN("turn:turn.gortc.io:3478", "user", "secret"),
+		)...)
 		if err != nil {
 			t.Fatal(err)
 		}
