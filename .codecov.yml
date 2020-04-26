@@ -1,9 +1,9 @@
 coverage:
   status:
-    patch: off
+    patch: false
     project:
       default:
         # basic
-        target: 70
+        target: 70.0
         threshold: null
         base: auto
