@@ -1418,12 +1418,12 @@ func TestAgent_Conclude(t *testing.T) {
 		done := make(chan struct{})
 		go func() {
 			if err := b.Conclude(ctx); err != nil {
-				t.Error(err)
+				t.Errorf("failed to conclude (B): %v", err)
 			}
 			done <- struct{}{}
 		}()
 		if err := a.Conclude(ctx); err != nil {
-			t.Error(err)
+			t.Errorf("failed to conslude (A): %v", err)
 		}
 		<-done
 	})
