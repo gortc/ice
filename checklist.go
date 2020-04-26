@@ -107,7 +107,7 @@ func (c *Checklist) Sort() { sort.Sort(c.Pairs) }
 // Prune removes redundant candidates.
 //
 // Two candidate pairs are redundant if their local candidates have the same
-// base and their remote candidates are identical
+// base and their remote candidates are identical.
 func (c *Checklist) Prune() {
 	// Pruning algorithm is not optimal but should work for small numbers,
 	// where len(c.Pairs) ~ 100.
