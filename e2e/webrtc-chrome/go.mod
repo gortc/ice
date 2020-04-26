@@ -8,10 +8,10 @@ require (
 	github.com/gorilla/websocket v1.4.1
 	github.com/mailru/easyjson v0.0.0-20180730094502-03f2033d19d5 // indirect
 	github.com/pkg/errors v0.8.1
-	go.uber.org/zap v1.10.0
+	go.uber.org/zap v1.14.1
 	golang.org/x/net v0.0.0-20190926025831-c00fd9afed17
 	gortc.io/ice v0.0.1
-	gortc.io/sdp v0.17.0
+	gortc.io/sdp v0.18.0
 )
 
 replace gortc.io/ice v0.0.1 => ../../
