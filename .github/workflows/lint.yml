@@ -8,4 +8,4 @@ jobs:
       - name: Check out code into the Go module directory
         uses: actions/checkout@v1
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v0.0.3
+        uses: golangci/golangci-lint-action@v0.2.0
