@@ -7,7 +7,7 @@ import (
 	"gortc.io/ice/internal"
 )
 
-// See Deprecating Site Local Addresses [RFC3879]
+// See Deprecating Site Local Addresses [RFC3879].
 var siteLocalIPv6 = internal.MustParseNet("FEC0::/10")
 
 // IsHostIPValid reports whether ip is valid as host address ip.
