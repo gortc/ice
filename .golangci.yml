@@ -69,6 +69,15 @@ issues:
       text: "(unnamedResult|exitAfterDefer)"
       linters: [gocritic]
 
+    # RFC references
+    - linters: [godot]
+      source: "RFC \\d+"
+    - linters: [godot]
+      source: " #nosec"
+    # Code comments
+    - linters: [godot]
+      source: "\\/\\/\\s+}"
+
 linters:
   enable-all: true
   disable:
@@ -80,6 +89,7 @@ linters:
     - wsl
     - godox
     - testpackage
+    - goerr113
 
 run:
   skip-dirs:
